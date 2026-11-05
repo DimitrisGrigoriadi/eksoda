@@ -159,6 +159,11 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
   <button data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>Аналитика</button>
 </div></nav>
 <script>
+const APP_VERSION="2026-11-05.4";
+(async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
+ if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
+  if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
+  location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}}catch(e){}})();
 const API="https://script.google.com/macros/s/AKfycbxn8exf2wvMErRTetN86v38q_N9llk-jES_lipMv6WoIZFiOxeAWOZakVCZN0cL1t675w/exec";
 const tg=window.Telegram&&window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();try{tg.setHeaderColor("secondary_bg_color")}catch(e){}

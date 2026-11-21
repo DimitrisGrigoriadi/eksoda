@@ -150,6 +150,11 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
 .fund .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .fund .v{font-family:var(--display);font-weight:700;font-size:20px}
 .fund small{color:var(--muted);font-size:12px}
+.ymrow{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.ymrow:first-of-type{border-top:0}.ymrow span:not(:first-child),.ymrow b{text-align:right;min-width:86px}
+.g12{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 0 10px}
+.g12 label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)}
+.g12 input{padding:6px 8px;text-align:right;font-size:13px}
 @media (prefers-reduced-motion:no-preference){
  .toast{animation:up .2s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}
  .bar span,.cat .pb i,.freq .fb i{animation:grow .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
@@ -179,7 +184,7 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
   <button data-tab="other"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Другое</button>
 </div></nav>
 <script>
-const APP_VERSION="2026-11-21.3";
+const APP_VERSION="2026-11-21.4";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -210,7 +215,8 @@ const CATS=[
  {id:"edu",n:"Обучение",g:"want",d:""},
  {id:"trip",n:"Путешествия",g:"want",d:"Отдых, билеты"},
  {id:"saving",n:"Подушка",g:"save",d:"Накопления"},
- {id:"snp",n:"S&P 500",g:"save",d:"Инвестиции"}
+ {id:"snp",n:"S&P 500",g:"save",d:"Инвестиции"},
+ {id:"big",n:"Крупные покупки",g:"save",d:"Машина, квартира"}
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
 const BASE_NAMES=[
@@ -279,7 +285,7 @@ async function load(silent){
     for(const [m,p] of Object.entries(d.plan))ensure(m).plan=p;
     for(const [m,l] of Object.entries(d.incomes))ensure(m).incomes=l;
     for(const o of d.ops)ensure(o.d.slice(0,7)).ops.push(o);
-    gifts=d.gifts||null;funds=d.funds||null;
+    gifts=d.gifts||null;funds=d.funds||null;years=d.years||null;
     if(!silent&&!months[cur]){const ks=Object.keys(months).filter(k=>Object.keys(months[k].plan).length).sort();
       const fut=ks.find(k=>k>cur); cur=fut||ks[ks.length-1]||cur;}
     render();
@@ -529,10 +535,12 @@ function giftRow(g){return `<button class="gift" data-g="${esc(g.id)}"><span>${e
 function viewOther(){
   if(otherView==="gifts")return viewGifts();
   if(otherView==="funds")return viewFunds();
+  if(otherView==="year")return viewYear();
   if(otherView==="stats")return viewStats().replace("<section>",`<section><div class="ghead"><button class="back" id="oBack">‹ Другое</button></div>`);
   const t=gifts?giftTotals():null;
   const ft=funds?funds.reduce((s,f)=>s+fundKzt(f),0):null;
-  return `<section><div class="card"><button class="mrow" id="openFunds"><span><b>Активы</b><small>${funds?`Копилки и вклады · ${fmt(ft)}`:"Копилки и вклады"}</small></span><span class="chev">›</span></button></div>
+  return `<section><div class="card"><button class="mrow" id="openYear"><span><b>Годовой бюджет и цели</b><small>План на год, цели на несколько лет</small></span><span class="chev">›</span></button></div>
+  <div class="card"><button class="mrow" id="openFunds"><span><b>Активы</b><small>${funds?`Копилки и вклады · ${fmt(ft)}`:"Копилки и вклады"}</small></span><span class="chev">›</span></button></div>
   <div class="card"><button class="mrow" id="openStats"><span><b>Аналитика</b><small>Факты месяца, крупные и частые траты</small></span><span class="chev">›</span></button></div>
   <div class="card"><button class="mrow" id="openGifts"><span><b>Подарки</b><small>${gifts?`${gifts.length} в списке · ${fmt(t.year)} в год`:"Список подарков на год"}</small></span><span class="chev">›</span></button></div></section>`;
 }
@@ -578,7 +586,9 @@ function viewGifts(){
 }
 function bindOther(){
   if(otherView==="funds"){bindFunds();return}
+  if(otherView==="year"){bindYear();return}
   if(otherView==="stats"){bindStats();document.getElementById("oBack").onclick=()=>{otherView="menu";render()};return}
+  const oy=document.getElementById("openYear");if(oy)oy.onclick=()=>{otherView="year";yEditGoal=null;if(!yView){const t=todayStr();yView=Number(t.slice(0,4))+(Number(t.slice(5,7))>=10?1:0)}render();window.scrollTo(0,0)};
   const of=document.getElementById("openFunds");if(of)of.onclick=()=>{otherView="funds";fEdit=null;render();window.scrollTo(0,0)};
   const os=document.getElementById("openStats");if(os)os.onclick=()=>{otherView="stats";render();window.scrollTo(0,0)};
   const og=document.getElementById("openGifts");if(og)og.onclick=()=>{otherView="gifts";render();window.scrollTo(0,0)};
@@ -604,6 +614,159 @@ function bindOther(){
   const del=$("g_del");if(del){let armed=false;del.onclick=async()=>{
     if(!armed){armed=true;del.textContent="Точно удалить?";del.style.color="var(--bad)";setTimeout(()=>{armed=false;del.textContent="Удалить";del.style.color=""},3000);return}
     const id=gEdit.id;gifts=gifts.filter(g=>g.id!==id);gEdit=null;render();await save("deleteGift",{id});toast("Удалено")}}
+}
+
+/* ---------- Другое → Годовой бюджет и цели ---------- */
+let years=null, yView=0, yOpen={}, yEditGoal=null, ySaveT=null;
+const ym=(y,i)=>y+"-"+String(i+1).padStart(2,"0");
+const ceilK=v=>Math.ceil(v/1000)*1000;
+function monthsBetween(a,b){const[y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").map(Number);return(y2-y1)*12+(m2-m1)+1}
+function yearData(y){
+  years??={};
+  if(!years[y]){
+    const lastInc=Object.keys(months).filter(k=>months[k].incomes.length).sort().pop();
+    years[y]={inc:(lastInc?months[lastInc].incomes:[]).map(i=>({n:i.n,a:i.a,m:{}})),cats:{}};
+  }
+  return years[y];
+}
+function goals(){
+  years??={};
+  if(!years.goals)years.goals=[{id:"g_gifts",n:"Подарки",c:"gifts",f:"f_gifts",auto:"gifts",s:"2027-01",b:"",t:0,h:0}];
+  return years.goals;
+}
+function goalTarget(g){if(g.auto==="gifts"){const t=giftTotals();return t.year+t.once}return g.t||0}
+function goalMonthly(g){
+  if(g.auto==="gifts")return ceilK(goalTarget(g)/12);
+  if(!g.s||!g.b||g.b<g.s)return 0;
+  return ceilK(Math.max(0,goalTarget(g)-(g.h||0))/monthsBetween(g.s,g.b));
+}
+const goalActive=(g,k)=>!!g.s&&k>=g.s&&(g.auto==="gifts"||k<=g.b);
+const incMonth=(Y,i)=>Y.inc.reduce((s,x)=>s+(x.m?.[i+1]??x.a),0);
+const catMonth=(Y,c,i)=>{const v=Y.cats[c];if(!v)return 0;return v.m?.[i+1]??Math.round((v.y||0)/12)};
+function planFor(y,i){
+  const Y=yearData(y),k=ym(y,i),plan={};
+  for(const c of CATS){const v=catMonth(Y,c.id,i);if(v)plan[c.id]=v}
+  for(const g of goals())if(goalActive(g,k)){const v=goalMonthly(g);if(v)plan[g.c]=(plan[g.c]||0)+v}
+  return plan;
+}
+function goalsByYear(){const out={},y0=Number(todayStr().slice(0,4))+(Number(todayStr().slice(5,7))>=10?1:0);
+  for(let y=y0;y<y0+5;y++){let s=0;for(let i=0;i<12;i++)for(const g of goals())if(goalActive(g,ym(y,i)))s+=goalMonthly(g);out[y]=s}return out}
+function saveYear(y){
+  clearTimeout(ySaveT);
+  ySaveT=setTimeout(async()=>{try{await api("setYear",{year:String(y),data:years[y]});await api("setYear",{year:"goals",data:goals()})}
+    catch(e){haptic("error");toast("Годовой бюджет не сохранился. Проверьте интернет.")}},500);
+}
+function monthInputs(kind,key,vals,def){
+  return `<div class="g12">${MONTH_NAMES.map((n,i)=>`<label><span>${n.slice(0,3)}</span><input inputmode="numeric" data-ym="${kind}" data-key="${esc(key)}" data-i="${i+1}" value="${vals?.[i+1]!=null?vals[i+1].toLocaleString("ru-RU"):""}" placeholder="${Math.round(def).toLocaleString("ru-RU")}"></label>`).join("")}</div>`;
+}
+function goalForm(){
+  const g=yEditGoal,isNew=!g.id,auto=g.auto==="gifts";
+  return `<div class="card" style="display:flex;flex-direction:column;gap:12px">
+   <div class="grp-h"><h3>${isNew?"Новая цель":"Цель"}</h3></div>
+   <div class="field"><label for="go_n">Название</label><input id="go_n" value="${esc(g.n)}" placeholder="Например, Машина" autocomplete="off"></div>
+   <div class="field"><label for="go_c">Взносы идут в категорию</label><select id="go_c">${CATS.map(c=>`<option value="${c.id}" ${g.c===c.id?"selected":""}>${esc(c.n)}</option>`).join("")}</select></div>
+   ${auto?`<small style="color:var(--muted)">Сумма берётся из списка подарков: ${fmt(goalTarget(g))} в год, взнос каждый месяц.</small>`:`
+   <div class="field"><label for="go_t">Сколько нужно, ₸</label><input id="go_t" inputmode="numeric" value="${g.t?g.t.toLocaleString("ru-RU"):""}"></div>
+   <div class="g2" style="grid-template-columns:1fr 1fr"><div class="field"><label for="go_s">Копить с</label><input id="go_s" type="month" value="${g.s||""}"></div>
+     <div class="field"><label for="go_b">К какому месяцу</label><input id="go_b" type="month" value="${g.b||""}"></div></div>
+   <div class="field"><label for="go_h">Уже накоплено, ₸</label><input id="go_h" inputmode="numeric" value="${g.h?g.h.toLocaleString("ru-RU"):""}" placeholder="0"></div>`}
+   <div class="field"><label for="go_f">Копилка для прогресса</label><select id="go_f"><option value="">Без копилки</option>${(funds||[]).map(f=>`<option value="${f.id}" ${g.f===f.id?"selected":""}>${esc(f.n)}</option>`).join("")}</select></div>
+   <div class="row"><button class="btn" id="go_save">Сохранить</button><button class="btn ghost" id="go_cancel">Отмена</button>${isNew||auto?"":`<button class="del" id="go_del" style="margin-left:auto;font-size:14px">Удалить</button>`}</div>
+  </div>`;
+}
+function viewYear(){
+  if(!years)return `<section><div class="card empty"><div>Годовой бюджет пока недоступен.</div><small>Нужно обновить код сервера в Apps Script.</small><button class="btn ghost" id="oBack">Назад</button></div></section>`;
+  const y=yView,Y=yearData(y);
+  const rowsM=[...Array(12)].map((_,i)=>{const p=planFor(y,i),inc=incMonth(Y,i),t=Object.values(p).reduce((s,v)=>s+v,0);
+    const grp={need:0,want:0,save:0};for(const[c,v]of Object.entries(p))if(CAT[c])grp[CAT[c].g]+=v;return{inc,t,grp}});
+  const inc=rowsM.reduce((s,r)=>s+r.inc,0),tot=rowsM.reduce((s,r)=>s+r.t,0),free=inc-tot,base=inc||1;
+  const G={need:0,want:0,save:0};rowsM.forEach(r=>{for(const g in G)G[g]+=r.grp[g]});
+  const goalsY=goals().filter(g=>[...Array(12)].some((_,i)=>goalActive(g,ym(y,i))));
+  const goalSum=rowsM.reduce((s,_,i)=>s+goals().filter(g=>goalActive(g,ym(y,i))).reduce((a,g)=>a+goalMonthly(g),0),0);
+  const parts=["need","want","save"].map(g=>({v:G[g]/base,c:GROUPS[g].color,t:GROUPS[g].name}));if(free>0)parts.push({v:free/base,c:"var(--free)",t:"Свободно"});
+  let h=`<section><div class="ghead"><button class="back" id="oBack">‹ Другое</button>
+     <span class="monthsw" style="gap:4px"><button class="icon-btn" id="yPrev" aria-label="Предыдущий год">‹</button><b style="min-width:70px;font-size:16px">${y}</b><button class="icon-btn" id="yNext" aria-label="Следующий год">›</button></span></div>
+   <div class="card"><div class="lbl">Годовой бюджет ${y}</div><div class="big ${free<0?"neg":""}">${free<0?"−":""}${fmt(Math.abs(free))}</div><small style="color:var(--muted)">${free<0?"не хватает за год":"свободно за год"}</small>
+    <div class="kpis" style="margin-top:12px">
+     <div><span class="lbl">Доход</span><span class="v">${fmt(inc)}</span></div>
+     <div><span class="lbl">Расходы и цели</span><span class="v">${fmt(tot)}</span></div>
+     <div><span class="lbl">Обязательства</span><span class="v">${fmt(tot-goalSum)}</span></div>
+     <div><span class="lbl">На цели</span><span class="v">${fmt(goalSum)}</span></div></div>
+    <div class="rule-row" style="margin-top:12px"><span class="t">Год</span>${ruleBar(parts)}</div>
+    <div class="legend" style="margin-top:8px">${["need","want","save"].map(g=>`<div><span class="name"><i class="dot" style="background:${GROUPS[g].color}"></i>${GROUPS[g].name}</span><span>${pct(G[g]/base)} <small>/ ${pct(GROUPS[g].target)}</small></span></div>`).join("")}</div></div>`;
+  // months
+  h+=`<div class="card"><div class="grp-h"><h3>По месяцам</h3><span>доход · план · остаток</span></div>${rowsM.map((r,i)=>`<div class="ymrow"><span>${MONTH_NAMES[i]}</span><span>${fmt(r.inc)}</span><span>${fmt(r.t)}</span><b class="${r.inc-r.t<0?"neg":""}">${fmt(r.inc-r.t)}</b></div>`).join("")}</div>`;
+  // goals
+  const gy=goalsByYear();
+  if(yEditGoal)h+=goalForm();
+  h+=`<div class="card"><div class="grp-h"><h3>Цели</h3><button class="btn small" id="goAdd">+ Цель</button></div>
+   <p class="sub">Подарки, отпуск, подушка, капитал на S&P, машина, квартира. Взнос в месяц считается из суммы и срока.</p>
+   ${goals().map(g=>{const fv=g.f&&funds?funds.find(f=>f.id===g.f):null,have=fv?fundValue(fv):(g.h||0),t=goalTarget(g),on=goalsY.includes(g);
+     return `<button class="gift" data-goal="${esc(g.id)}" style="${on?"":"opacity:.55"}"><span>${esc(g.n)}<small>${g.auto==="gifts"?"каждый месяц, по списку подарков":`${fmt(t)} к ${g.b?MONTH_GEN[Number(g.b.slice(5))-1]+" "+g.b.slice(0,4):"—"}`}${fv&&t?` · накоплено ${pct(Math.min(1,have/t))}`:""}</small></span><span class="s">${fmt(goalMonthly(g))}<small style="text-align:right">в месяц</small></span></button>`}).join("")}
+   <div class="tot" style="font-weight:500;font-size:13px;flex-wrap:wrap"><span>На цели по годам</span><span>${Object.entries(gy).map(([yy,v])=>`${yy}: <b>${(v/1e6).toFixed(2).replace(".",",")} млн</b>`).join(" · ")}</span></div></div>`;
+  // incomes
+  h+=`<div class="card"><div class="grp-h"><h3>Доходы</h3><span>${fmt(inc)} за год</span></div>
+   ${Y.inc.map((x,k)=>`<div class="inc"><input data-yi="${k}" data-f="n" value="${esc(x.n)}" aria-label="Источник дохода"><input class="num" data-yi="${k}" data-f="a" inputmode="numeric" value="${x.a.toLocaleString("ru-RU")}" aria-label="В месяц"><button class="del" data-yix="${k}" aria-label="Удалить">×</button></div>
+     <button class="back" style="font-size:13px;padding:0 0 6px" data-open="inc${k}">${yOpen["inc"+k]?"Скрыть месяцы":"Разные суммы по месяцам"}${Object.keys(x.m||{}).length?` · изменено: ${Object.keys(x.m).length}`:""}</button>
+     ${yOpen["inc"+k]?monthInputs("inc",k,x.m,x.a):""}`).join("")}
+   <button class="btn ghost small" id="yAddInc" style="margin-top:6px">+ Добавить доход</button></div>`;
+  // obligations
+  for(const g of ["need","want","save"]){
+    const cats=CATS.filter(c=>c.g===g);
+    h+=`<div class="card"><div class="grp-h"><h3><i class="dot" style="background:${GROUPS[g].color}"></i>${g==="need"?"Обязательства":GROUPS[g].name}</h3><span>${fmt(G[g])} за год</span></div>
+     ${cats.map(c=>{const v=Y.cats[c.id]||{},gm=goals().filter(x=>x.c===c.id&&[...Array(12)].some((_,i)=>goalActive(x,ym(y,i))));
+       return `<div class="prow"><div><span>${esc(c.n)}</span><small>${v.y?`≈ ${fmt(v.y/12)} в месяц`:"сумма на год"}${gm.length?` · + цели ${fmt(gm.reduce((s,x)=>s+goalMonthly(x),0))}/мес`:""}</small>
+         <button class="back" style="font-size:12px;padding:2px 0" data-open="cat${c.id}">${yOpen["cat"+c.id]?"Скрыть месяцы":"По месяцам"}${Object.keys(v.m||{}).length?` · изменено: ${Object.keys(v.m).length}`:""}</button></div>
+         <input data-yc="${c.id}" inputmode="numeric" value="${v.y?v.y.toLocaleString("ru-RU"):""}" placeholder="0" aria-label="За год: ${esc(c.n)}"></div>
+         ${yOpen["cat"+c.id]?monthInputs("cat",c.id,v.m,(v.y||0)/12):""}`}).join("")}</div>`;
+  }
+  const curY=Number(todayStr().slice(0,4)),fromDef=y===curY?Number(todayStr().slice(5,7)):1;
+  h+=`<div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="grp-h"><h3>Перенести в план месяцев</h3></div>
+   <p class="sub" style="margin:0">План и доходы выбранных месяцев заменятся суммами из годового бюджета. Потом любой месяц можно поправить во вкладке «План».</p>
+   <div class="g2" style="grid-template-columns:1fr auto;align-items:center"><select id="yFrom">${MONTH_NAMES.map((n,i)=>`<option value="${i}" ${i+1===fromDef?"selected":""}>С ${MONTH_GEN[i]} по декабрь</option>`).join("")}</select><button class="btn" id="yApply">Заполнить</button></div></div>`;
+  return h+`</section>`;
+}
+function bindYear(){
+  const $=id=>document.getElementById(id);
+  $("oBack").onclick=()=>{otherView="menu";yEditGoal=null;render()};
+  if(!years)return;
+  const y=yView,Y=yearData(y);
+  $("yPrev").onclick=()=>{yView--;yEditGoal=null;rerenderKeepScroll()};
+  $("yNext").onclick=()=>{yView++;yEditGoal=null;rerenderKeepScroll()};
+  const changed=()=>{saveYear(y);rerenderKeepScroll()};
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{yOpen[b.dataset.open]=!yOpen[b.dataset.open];rerenderKeepScroll()});
+  document.querySelectorAll("input[data-yc]").forEach(i=>i.onchange=()=>{const c=i.dataset.yc;(Y.cats[c]??={m:{}}).y=parseNum(i.value);changed()});
+  document.querySelectorAll("input[data-yi]").forEach(i=>i.onchange=()=>{const x=Y.inc[i.dataset.yi];if(i.dataset.f==="n")x.n=i.value.trim()||"Доход";else x.a=parseNum(i.value);changed()});
+  document.querySelectorAll("[data-yix]").forEach(b=>b.onclick=()=>{Y.inc.splice(b.dataset.yix,1);changed()});
+  $("yAddInc").onclick=()=>{Y.inc.push({n:"Новый доход",a:0,m:{}});changed()};
+  document.querySelectorAll("input[data-ym]").forEach(i=>i.onchange=()=>{
+    const obj=i.dataset.ym==="inc"?Y.inc[i.dataset.key]:(Y.cats[i.dataset.key]??={y:0,m:{}});obj.m??={};
+    if(i.value.trim()==="")delete obj.m[i.dataset.i];else obj.m[i.dataset.i]=parseNum(i.value);changed()});
+  $("goAdd").onclick=()=>{yEditGoal={id:"",n:"",c:"saving",f:"",s:ym(y,0),b:ym(y,11),t:0,h:0};rerenderKeepScroll();$("go_n").focus()};
+  document.querySelectorAll("[data-goal]").forEach(b=>b.onclick=()=>{yEditGoal={...goals().find(g=>g.id===b.dataset.goal)};rerenderKeepScroll()});
+  const ap=$("yApply");let armed=false;ap.onclick=async()=>{
+    const from=Number($("yFrom").value);
+    if(!armed){armed=true;ap.textContent="Точно заменить?";ap.style.background="var(--bad)";setTimeout(()=>{armed=false;ap.textContent="Заполнить";ap.style.background=""},3500);return}
+    const ms={};for(let i=from;i<12;i++)ms[ym(y,i)]={plan:planFor(y,i),incomes:Y.inc.map(x=>({n:x.n,a:x.m?.[i+1]??x.a})).filter(x=>x.a)};
+    ap.disabled=true;ap.textContent="Заполняю…";
+    try{const d=await api("applyYear",{months:ms});await load(true);haptic("success");toast(`План заполнен: ${12-from} мес.`)}
+    catch(e){haptic("error");toast("Не получилось. Проверьте интернет.");ap.disabled=false;ap.textContent="Заполнить"}
+  };
+  if(!yEditGoal)return;
+  const g=yEditGoal;
+  $("go_cancel").onclick=()=>{yEditGoal=null;rerenderKeepScroll()};
+  const t=$("go_t");if(t)t.oninput=()=>{const v=parseNum(t.value);t.value=v?v.toLocaleString("ru-RU"):""};
+  $("go_save").onclick=()=>{
+    const n={...g,n:$("go_n").value.trim(),c:$("go_c").value,f:$("go_f").value};
+    if(!n.n){toast("Введите название");return}
+    if(g.auto!=="gifts"){n.t=parseNum($("go_t").value);n.s=$("go_s").value;n.b=$("go_b").value;n.h=parseNum($("go_h").value);
+      if(!n.t||!n.s||!n.b){toast("Укажите сумму и сроки");return}if(n.b<n.s){toast("Срок раньше начала");return}}
+    if(!n.id)n.id="g"+Date.now().toString(36);
+    const list=goals(),i=list.findIndex(x=>x.id===n.id);if(i>=0)list[i]=n;else list.push(n);
+    yEditGoal=null;saveYear(y);haptic("success");toast(`Цель: ${fmt(goalMonthly(n))} в месяц`);rerenderKeepScroll()};
+  const del=$("go_del");if(del){let a2=false;del.onclick=()=>{
+    if(!a2){a2=true;del.textContent="Точно удалить?";del.style.color="var(--bad)";setTimeout(()=>{a2=false;del.textContent="Удалить";del.style.color=""},3000);return}
+    years.goals=goals().filter(x=>x.id!==g.id);yEditGoal=null;saveYear(y);rerenderKeepScroll()}}
 }
 
 /* ---------- Другое → Активы ---------- */

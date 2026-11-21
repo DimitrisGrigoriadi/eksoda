@@ -73,7 +73,7 @@ section{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .cat .pb i{display:block;height:100%}
 .cat .over{color:var(--bad);font-weight:600}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
-nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
 nav.tabs button{border:0;background:none;padding:8px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted)}
 nav.tabs button svg{width:22px;height:22px}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:600}
@@ -130,6 +130,20 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
 .freq .fb i{display:block;height:100%;border-radius:4px}
 .freq small{color:var(--muted);font-size:12px}
 .sub{font-size:13px;color:var(--muted);margin:-4px 0 6px}
+.mrow{width:100%;border:0;background:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0;text-align:left}
+.mrow small{display:block;color:var(--muted);font-size:13px;font-weight:400}
+.mrow .chev{color:var(--muted);font-size:22px}
+.gift{width:100%;border:0;background:none;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);text-align:left}
+.gift:first-of-type,.day+.gift{border-top:0}
+.gift small{display:block;color:var(--muted);font-size:12px}
+.gift .s{font-weight:600;white-space:nowrap}
+.gift .pill{margin-left:6px;vertical-align:1px}
+.ghead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ghead h2{margin:0;font-family:var(--display);font-weight:500;font-size:18px}
+.back{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0}
+.g2{display:grid;grid-template-columns:90px 1fr;gap:8px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
 @media (prefers-reduced-motion:no-preference){
  .toast{animation:up .2s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}
  .bar span,.cat .pb i,.freq .fb i{animation:grow .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
@@ -157,9 +171,10 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
   <button data-tab="add" class="add"><span class="plus">+</span><span style="color:var(--muted)">Расход</span></button>
   <button data-tab="ops"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Операции</button>
   <button data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>Аналитика</button>
+  <button data-tab="other"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Другое</button>
 </div></nav>
 <script>
-const APP_VERSION="2026-11-05.4";
+const APP_VERSION="2026-11-21.1";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -182,7 +197,7 @@ const CATS=[
  {id:"parents",n:"Помощь родителям",g:"need",d:""},
  {id:"cafe",n:"Еда вне дома",g:"want",d:"Кафе, обеды, доставка"},
  {id:"stuff",n:"Личные вещи",g:"want",d:"Одежда, обувь, дом"},
- {id:"gifts",n:"Подарки",g:"want",d:"Годовой бюджет 2 000 000 ₸"},
+ {id:"gifts",n:"Подарки",g:"want",d:"Список — во вкладке «Другое»"},
  {id:"wish",n:"Хотелки",g:"want",d:"Покупки себе"},
  {id:"fun",n:"Развлечения",g:"want",d:"Кино, баня, музеи"},
  {id:"subs",n:"Подписки",g:"want",d:"AI, музыка, облако"},
@@ -216,6 +231,7 @@ const MONTH_GEN=["января","февраля","марта","апреля","м
 const todayStr=()=>{const d=new Date(Date.now()+5*3600e3);return d.toISOString().slice(0,10)};
 let months={}, cur=todayStr().slice(0,7), tab="month", me=null, hlIdx=-1, busy=false;
 let draft={a:"",n:"",c:"",d:""};
+let gifts=null, otherView="menu", giftMode="month", gEdit=null;
 
 const fmt=n=>Math.round(n).toLocaleString("ru-RU").replace(/,/g," ")+" ₸";
 const pct=n=>Math.round(n*100)+"%";
@@ -245,6 +261,7 @@ async function load(silent){
     for(const [m,p] of Object.entries(d.plan))ensure(m).plan=p;
     for(const [m,l] of Object.entries(d.incomes))ensure(m).incomes=l;
     for(const o of d.ops)ensure(o.d.slice(0,7)).ops.push(o);
+    gifts=d.gifts||null;
     if(!silent&&!months[cur]){const ks=Object.keys(months).filter(k=>Object.keys(months[k].plan).length).sort();
       const fut=ks.find(k=>k>cur); cur=fut||ks[ks.length-1]||cur;}
     render();
@@ -284,20 +301,20 @@ function render(){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.dataset.tab===tab?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   const v=document.getElementById("view");
   const has=M()&&(Object.keys(M().plan).length||M().incomes.length);
-  if(!has&&tab!=="add"&&tab!=="ops"){v.innerHTML=noMonth();bindNoMonth();return}
+  if(!has&&!["add","ops","other"].includes(tab)){v.innerHTML=noMonth();bindNoMonth();return}
   ensure(cur);
-  v.innerHTML=({month:viewMonth,plan:viewPlan,add:viewAdd,ops:viewOps,stats:viewStats})[tab]();
-  ({month:bindMonth,plan:bindPlan,add:bindAdd,ops:bindOps,stats:bindStats})[tab]();
+  v.innerHTML=({month:viewMonth,plan:viewPlan,add:viewAdd,ops:viewOps,stats:viewStats,other:viewOther})[tab]();
+  ({month:bindMonth,plan:bindPlan,add:bindAdd,ops:bindOps,stats:bindStats,other:bindOther})[tab]();
 }
 function prevWithPlan(){let k=shift(cur,-1);for(let i=0;i<24;i++){if(months[k]&&Object.keys(months[k].plan).length)return k;k=shift(k,-1)}return null}
 function noMonth(){
   const p=prevWithPlan();
   return `<section><div class="card empty"><div>На этот месяц ещё нет плана.</div>
-   ${p?`<button class="btn" id="copyPrev">Скопировать план: ${MONTH_NAMES[Number(p.slice(5))-1]}</button><small>Перенесутся суммы по категориям и доходы, потом их можно поправить. Подарки станут 166 700 ₸ (2 млн / 12), если это не декабрь.</small>`:`<small>Начните с месяца, где план уже есть.</small>`}</div></section>`;
+   ${p?`<button class="btn" id="copyPrev">Скопировать план: ${MONTH_NAMES[Number(p.slice(5))-1]}</button><small>Перенесутся суммы по категориям и доходы, потом их можно поправить. Подарки возьмутся из списка во вкладке «Другое».</small>`:`<small>Начните с месяца, где план уже есть.</small>`}</div></section>`;
 }
 function bindNoMonth(){const b=document.getElementById("copyPrev");if(!b)return;b.onclick=async()=>{
   const src=months[prevWithPlan()], plan={...src.plan};
-  if(!cur.endsWith("-12"))plan.gifts=166700;
+  if(gifts)plan.gifts=giftMonthTotal(Number(cur.slice(5)));
   const m=ensure(cur);m.plan=plan;m.incomes=src.incomes.map(i=>({...i,id:""}));
   b.disabled=true;
   await save("setPlanMonth",{month:cur,plan});
@@ -469,7 +486,96 @@ function bindStats(){
   const b=document.getElementById("nextFact");if(b)b.onclick=()=>{hlIdx=(hlIdx+1)%facts(M()).length;render()};
 }
 
-document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();window.scrollTo(0,0)});
+/* ---------- Другое → Подарки ---------- */
+const OCCASIONS=["День рождения","Новый год","8 Марта","23 февраля","Годовщина","День влюблённых","Разовый подарок"];
+const REPEAT={year:"Каждый год",month:"Каждый месяц",once:"Один раз"};
+const inMonth=(g,m)=>g.r==="month"||g.m===m;
+function giftMonthTotal(m){return(gifts||[]).filter(g=>inMonth(g,m)).reduce((s,g)=>s+g.a,0)}
+function giftTotals(){
+  const list=gifts||[];let year=0;
+  for(let m=1;m<=12;m++)year+=list.filter(g=>g.r!=="once"&&inMonth(g,m)).reduce((s,g)=>s+g.a,0);
+  year+=list.filter(g=>g.r==="year"&&!g.m).reduce((s,g)=>s+g.a,0);
+  const once=list.filter(g=>g.r==="once").reduce((s,g)=>s+g.a,0);
+  return{year,once};
+}
+const byDay=(a,b)=>(a.r==="month")-(b.r==="month")||(a.d==null)-(b.d==null)||(a.d||0)-(b.d||0)||a.n.localeCompare(b.n,"ru");
+function giftWhen(g){
+  if(g.r==="month")return"каждый месяц";
+  const d=g.d&&g.m?`${g.d} ${MONTH_GEN[g.m-1]}`:g.m?MONTH_NAMES[g.m-1].toLowerCase():"без даты";
+  return g.r==="once"?d+" · один раз":d;
+}
+function giftRow(g){return `<button class="gift" data-g="${esc(g.id)}"><span>${esc(g.n)}${g.f?`<span class="pill warn">уточнить</span>`:""}<small>${esc(g.o||"")}${g.o?" · ":""}${esc(giftWhen(g))}</small></span><span class="s">${fmt(g.a)}</span></button>`}
+function viewOther(){
+  if(otherView==="gifts")return viewGifts();
+  const t=gifts?giftTotals():null;
+  return `<section><div class="card"><button class="mrow" id="openGifts"><span><b>Подарки</b><small>${gifts?`${gifts.length} в списке · ${fmt(t.year)} в год`:"Список подарков на год"}</small></span><span class="chev">›</span></button></div></section>`;
+}
+function giftForm(){
+  const g=gEdit,isNew=!g.id;
+  return `<div class="card" style="display:flex;flex-direction:column;gap:12px">
+   <div class="grp-h"><h3>${isNew?"Новый подарок":"Подарок"}</h3></div>
+   <div class="field"><label for="g_n">Кому</label><input id="g_n" value="${esc(g.n)}" placeholder="Например, Мама" autocomplete="off"></div>
+   <div class="field"><label for="g_o">Повод</label><input id="g_o" list="g_occ" value="${esc(g.o)}" placeholder="День рождения" autocomplete="off"><datalist id="g_occ">${OCCASIONS.map(o=>`<option value="${o}">`).join("")}</datalist></div>
+   <div class="field"><label for="g_r">Как часто</label><select id="g_r">${Object.entries(REPEAT).map(([k,v])=>`<option value="${k}" ${g.r===k?"selected":""}>${v}</option>`).join("")}</select></div>
+   <div class="field" id="g_when" ${g.r==="month"?"hidden":""}><label for="g_d">Дата</label><div class="g2"><input id="g_d" inputmode="numeric" placeholder="День" value="${g.d??""}"><select id="g_m" aria-label="Месяц"><option value="">Без месяца</option>${MONTH_NAMES.map((n,i)=>`<option value="${i+1}" ${g.m===i+1?"selected":""}>${n}</option>`).join("")}</select></div></div>
+   <div class="field"><label for="g_a">Сумма${g.r==="month"?" в месяц":""}, ₸</label><input id="g_a" inputmode="numeric" value="${g.a?g.a.toLocaleString("ru-RU"):""}" placeholder="0"></div>
+   <div class="field"><label for="g_c">Примечание</label><input id="g_c" value="${esc(g.c)}" autocomplete="off"></div>
+   <label class="chk"><input type="checkbox" id="g_f" ${g.f?"checked":""}>Нужно уточнить</label>
+   <div class="row"><button class="btn" id="g_save">Сохранить</button><button class="btn ghost" id="g_cancel">Отмена</button>${isNew?"":`<button class="del" id="g_del" style="margin-left:auto;font-size:14px">Удалить</button>`}</div>
+  </div>`;
+}
+function viewGifts(){
+  if(!gifts)return `<section><div class="card empty"><div>Список подарков пока недоступен.</div><small>Нужно обновить код сервера в Apps Script.</small><button class="btn ghost" id="gBack">Назад</button></div></section>`;
+  const mm=Number(cur.slice(5)),t=giftTotals();
+  let h=`<section><div class="ghead"><button class="back" id="gBack">‹ Другое</button><button class="btn small" id="gAdd">+ Подарок</button></div>
+   <div class="ghead"><h2>Подарки</h2></div>
+   <div class="seg"><button data-gm="month" aria-pressed="${giftMode==="month"}">${MONTH_NAMES[mm-1]}</button><button data-gm="year" aria-pressed="${giftMode==="year"}">Весь год</button></div>`;
+  if(gEdit)h+=giftForm();
+  if(giftMode==="month"){
+    const list=gifts.filter(g=>inMonth(g,mm)).sort(byDay),tot=list.reduce((s,g)=>s+g.a,0);
+    const plan=M()?.plan?.gifts, hasPlan=M()&&Object.keys(M().plan).length;
+    h+=`<div class="card"><div class="lbl">Подарки на ${MONTH_NAMES[mm-1].toLowerCase()}</div><div class="big">${fmt(tot)}</div>
+     ${hasPlan?`<div class="hint" style="margin-top:10px"><span>В плане месяца: <b>${fmt(plan||0)}</b>${(plan||0)!==tot?` · разница ${fmt(Math.abs(tot-(plan||0)))}`:""}</span>${(plan||0)!==tot?`<button class="btn small" id="gToPlan">Поставить ${fmt(tot)} в план</button>`:`<span class="pill ok">совпадает</span>`}</div>`:""}</div>
+     <div class="card">${list.length?list.map(giftRow).join(""):`<div class="empty">В этом месяце подарков нет.</div>`}</div>`;
+  }else{
+    h+=`<div class="card"><div class="lbl">За год</div><div class="big">${fmt(t.year)}</div>${t.once?`<small style="color:var(--muted)">и разовые ${fmt(t.once)}</small>`:""}</div>`;
+    const monthly=gifts.filter(g=>g.r==="month");
+    for(let m=1;m<=12;m++){
+      const list=gifts.filter(g=>g.r!=="month"&&g.m===m).sort(byDay),tot=list.reduce((s,g)=>s+g.a,0)+monthly.reduce((s,g)=>s+g.a,0);
+      h+=`<div class="card"><div class="grp-h"><h3>${MONTH_NAMES[m-1]}</h3><span>${fmt(tot)}</span></div>${list.map(giftRow).join("")||`<small style="color:var(--muted)">Только ежемесячные</small>`}</div>`;
+    }
+    const rest=gifts.filter(g=>g.r==="month"||!g.m).sort(byDay);
+    if(rest.length)h+=`<div class="card"><div class="grp-h"><h3>Каждый месяц и без даты</h3></div>${rest.map(giftRow).join("")}</div>`;
+  }
+  return h+`</section>`;
+}
+function bindOther(){
+  const og=document.getElementById("openGifts");if(og)og.onclick=()=>{otherView="gifts";render();window.scrollTo(0,0)};
+  const b=document.getElementById("gBack");if(b)b.onclick=()=>{otherView="menu";gEdit=null;render()};
+  document.querySelectorAll("[data-gm]").forEach(x=>x.onclick=()=>{giftMode=x.dataset.gm;rerenderKeepScroll()});
+  const add=document.getElementById("gAdd");if(add)add.onclick=()=>{gEdit={id:"",n:"",o:"",d:null,m:giftMode==="month"?Number(cur.slice(5)):null,a:0,r:"year",f:false,c:""};render();window.scrollTo(0,0);document.getElementById("g_n").focus()};
+  document.querySelectorAll(".gift[data-g]").forEach(x=>x.onclick=()=>{gEdit={...gifts.find(g=>g.id===x.dataset.g)};render();window.scrollTo(0,0)});
+  const tp=document.getElementById("gToPlan");if(tp)tp.onclick=async()=>{const v=giftMonthTotal(Number(cur.slice(5)));M().plan.gifts=v;rerenderKeepScroll();await save("setPlan",{month:cur,cat:"gifts",amount:v});haptic("success");toast("План подарков обновлён")};
+  if(!gEdit)return;
+  const $=id=>document.getElementById(id);
+  const a=$("g_a");a.oninput=()=>{const v=parseNum(a.value);a.value=v?v.toLocaleString("ru-RU"):""};
+  $("g_r").onchange=()=>{$("g_when").hidden=$("g_r").value==="month"};
+  $("g_cancel").onclick=()=>{gEdit=null;render()};
+  $("g_save").onclick=async()=>{
+    const g={id:gEdit.id,n:$("g_n").value.trim(),o:$("g_o").value.trim(),r:$("g_r").value,d:null,m:null,a:parseNum(a.value),c:$("g_c").value.trim(),f:$("g_f").checked};
+    if(!g.n){toast("Кому подарок?");$("g_n").focus();return}
+    if(g.r!=="month"){const d=parseNum($("g_d").value);g.d=d>=1&&d<=31?d:null;g.m=Number($("g_m").value)||null}
+    const btn=$("g_save");btn.disabled=true;btn.textContent="Сохраняю…";
+    try{const r=await api("setGift",g);g.id=r.id;const i=gifts.findIndex(x=>x.id===g.id);if(i>=0)gifts[i]=g;else gifts.push(g);
+      gEdit=null;haptic("success");toast("Сохранено");render()}
+    catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет.");btn.disabled=false;btn.textContent="Сохранить"}
+  };
+  const del=$("g_del");if(del){let armed=false;del.onclick=async()=>{
+    if(!armed){armed=true;del.textContent="Точно удалить?";del.style.color="var(--bad)";setTimeout(()=>{armed=false;del.textContent="Удалить";del.style.color=""},3000);return}
+    const id=gEdit.id;gifts=gifts.filter(g=>g.id!==id);gEdit=null;render();await save("deleteGift",{id});toast("Удалено")}}
+}
+
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==="other"){otherView="menu";gEdit=null}render();window.scrollTo(0,0)});
 document.getElementById("prevM").onclick=()=>{cur=shift(cur,-1);draft.d="";render()};
 document.getElementById("nextM").onclick=()=>{cur=shift(cur,1);draft.d="";render()};
 document.getElementById("view").innerHTML=loadingHtml();

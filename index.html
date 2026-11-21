@@ -73,7 +73,7 @@ section{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .cat .pb i{display:block;height:100%}
 .cat .over{color:var(--bad);font-weight:600}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
-nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
+nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
 nav.tabs button{border:0;background:none;padding:8px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted)}
 nav.tabs button svg{width:22px;height:22px}
 nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:600}
@@ -170,11 +170,10 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
   <button data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>План</button>
   <button data-tab="add" class="add"><span class="plus">+</span><span style="color:var(--muted)">Расход</span></button>
   <button data-tab="ops"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Операции</button>
-  <button data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>Аналитика</button>
   <button data-tab="other"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>Другое</button>
 </div></nav>
 <script>
-const APP_VERSION="2026-11-21.1";
+const APP_VERSION="2026-11-21.2";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -507,8 +506,10 @@ function giftWhen(g){
 function giftRow(g){return `<button class="gift" data-g="${esc(g.id)}"><span>${esc(g.n)}${g.f?`<span class="pill warn">уточнить</span>`:""}<small>${esc(g.o||"")}${g.o?" · ":""}${esc(giftWhen(g))}</small></span><span class="s">${fmt(g.a)}</span></button>`}
 function viewOther(){
   if(otherView==="gifts")return viewGifts();
+  if(otherView==="stats")return viewStats().replace("<section>",`<section><div class="ghead"><button class="back" id="oBack">‹ Другое</button></div>`);
   const t=gifts?giftTotals():null;
-  return `<section><div class="card"><button class="mrow" id="openGifts"><span><b>Подарки</b><small>${gifts?`${gifts.length} в списке · ${fmt(t.year)} в год`:"Список подарков на год"}</small></span><span class="chev">›</span></button></div></section>`;
+  return `<section><div class="card"><button class="mrow" id="openStats"><span><b>Аналитика</b><small>Факты месяца, крупные и частые траты</small></span><span class="chev">›</span></button></div>
+  <div class="card"><button class="mrow" id="openGifts"><span><b>Подарки</b><small>${gifts?`${gifts.length} в списке · ${fmt(t.year)} в год`:"Список подарков на год"}</small></span><span class="chev">›</span></button></div></section>`;
 }
 function giftForm(){
   const g=gEdit,isNew=!g.id;
@@ -550,6 +551,8 @@ function viewGifts(){
   return h+`</section>`;
 }
 function bindOther(){
+  if(otherView==="stats"){bindStats();document.getElementById("oBack").onclick=()=>{otherView="menu";render()};return}
+  const os=document.getElementById("openStats");if(os)os.onclick=()=>{otherView="stats";render();window.scrollTo(0,0)};
   const og=document.getElementById("openGifts");if(og)og.onclick=()=>{otherView="gifts";render();window.scrollTo(0,0)};
   const b=document.getElementById("gBack");if(b)b.onclick=()=>{otherView="menu";gEdit=null;render()};
   document.querySelectorAll("[data-gm]").forEach(x=>x.onclick=()=>{giftMode=x.dataset.gm;rerenderKeepScroll()});

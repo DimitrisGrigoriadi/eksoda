@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.14";
+const APP_VERSION="2026-11-26.15";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -946,25 +946,36 @@ function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
 
 
 /* ---------- Взнос копилки: правка как у строк плана ---------- */
-function contribSheet(f){if(!f)return;
-  const p=JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f)})),debt=fundLayer(f)==="debt",cur0=fundMonthly(f),val=fundValue(f);
-  if(p.mode==="gifts"||p.mode==="schedule"){openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${n0(cur0)} в месяц</small></div><div class="note">Взнос считается сам — из ${p.mode==="gifts"?"списка подарков":"списка поездок и платежей"}, чтобы к каждой дате хватало. Поменяй список — взнос пересчитается.</div><button class="btn w" id="cOpen">Открыть копилку</button>`,s=>{s.querySelector("#cOpen").onclick=()=>{closeSheet();sub="fund:"+f.id;fdMode="y";render();window.scrollTo(0,0)}});return}
-  const s0=nowYm(),left=Math.max(0,(p.t||0)-val);
-  const calc=x=>{if(p.mode!=="target"||!p.t)return"";if(!x)return"При нуле цель не будет достигнута";const n=Math.ceil(left/x);const e=shift(s0,Math.max(0,n-1));return left?`${debt?"Закроешь":"Наберёшь"} ${n0(p.t)} — срок: ${MONTH_NAMES[Number(e.slice(5))-1].toLowerCase()} ${e.slice(0,4)}`:"Цель уже набрана"};
-  openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${debt?"платёж":"взнос"} в месяц</small></div>
-   <div class="step"><button data-cs="-1" aria-label="Меньше">−</button><input id="cV" inputmode="numeric" value="${n0(cur0)}" aria-label="Сумма в месяц"><button data-cs="1" aria-label="Больше">+</button></div>
-   <div class="note" id="cN">${p.mode==="target"&&p.t?(debt?"Осталось отдать ":"Осталось набрать ")+n0(left)+" · "+calc(cur0):"Будет откладываться каждый месяц"}</div>
-   <button class="btn w" id="cOk">Сохранить</button><button class="del" style="color:var(--muted)" id="cMore">Цель, срок и другие настройки</button>`,sh=>{
-    const iv=sh.querySelector("#cV"),upd=()=>{const x=parseNum(iv.value);if(p.mode==="target"&&p.t)sh.querySelector("#cN").textContent=(debt?"Осталось отдать ":"Осталось набрать ")+n0(left)+" · "+calc(x)};
-    iv.oninput=()=>{const v=parseNum(iv.value);iv.value=v?n0(v):"";upd()};
-    const st=cur0>=200000?10000:5000;sh.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.cs)*st));upd()});
-    sh.querySelector("#cMore").onclick=()=>{closeSheet();sub="fund:"+f.id;fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:fundLayer(f)}))};fEdit.plan.pay??=[];sub="fedit";render();window.scrollTo(0,0)};
-    sh.querySelector("#cOk").onclick=async()=>{const x=parseNum(iv.value);
-      if(p.mode==="target"&&p.t){if(!x){toast("Взнос не может быть нулём при цели");return}p.s=s0;p.h=val;p.x=x;p.b=left?shift(s0,Math.max(0,Math.ceil(left/x)-1)):s0}
-      else{p.mode="fixed";p.x=x;p.s=p.s&&p.s>=s0?p.s:s0}
-      const f2={...f,plan:p};closeSheet();
-      try{await api("setFund",f2);const i=funds.findIndex(z=>z.id===f.id);funds[i]=f2;haptic("success");toast(`Сохранено на сервере ✓ · ${n0(fundMonthly(f2))} в месяц`);rerenderKeepScroll()}
-      catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет. ("+(e.message||"ошибка")+")")}}})}
+/* plan.ov = {"2026-12": сумма} — только этот месяц; plan.st = [{ym, x}] — с этого месяца и дальше */
+const _fundAtBase=fundAt;
+fundAt=function(f,k){const p=fundPlan(f);if(!p)return 0;
+  if(p.ov&&p.ov[k]!=null)return p.ov[k];
+  const st=(p.st||[]).filter(x=>x.ym<=k).sort((a,b)=>a.ym.localeCompare(b.ym)).pop();
+  if(!st)return _fundAtBase(f,k);
+  if(p.mode==="target"&&p.t){let have=p.h||0;for(let m=p.s||k;m<k;m=shift(m,1))have+=fundAt(f,m);return Math.max(0,Math.min(st.x,p.t-have))}
+  return st.x};
+function contribSheet(f,k){if(!f)return;k=k||cur;
+  const p=JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f),s:k})),debt=fundLayer(f)==="debt",now=fundAt(f,k),mi=Number(k.slice(5))-1;
+  const auto=p.mode==="gifts"||p.mode==="schedule";
+  openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${debt?"платёж":"взнос"} · ${MONTH_NAMES[mi].toLowerCase()} ${k.slice(0,4)}</small></div>
+   <div class="step"><button data-cs="-1" aria-label="Меньше">−</button><input id="cV" inputmode="numeric" value="${n0(now)}" aria-label="Сумма в месяц"><button data-cs="1" aria-label="Больше">+</button></div>
+   <div class="seg"><button data-csc="only" aria-pressed="${pScope==="only"}">Только ${MONTH_NAMES[mi].toLowerCase()}</button><button data-csc="all" aria-pressed="${pScope!=="only"}">${MONTH_NAMES[mi]} и дальше</button></div>
+   <div class="note" id="cN">${auto?"Обычно взнос считается сам из списка — здесь можно положить больше или меньше.":p.mode==="target"&&p.t?"Когда цель "+n0(p.t)+" наберётся, взносы остановятся сами.":""}</div>
+   <button class="btn w" id="cOk">Сохранить</button>${(p.ov&&Object.keys(p.ov).length)||(p.st&&p.st.length)?`<button class="del" style="color:var(--muted)" id="cReset">Вернуть расчёт по цели и сроку</button>`:""}<button class="del" style="color:var(--muted)" id="cMore">Цель, срок и другие настройки</button>`,sh=>{
+    let sc=pScope==="only"?"only":"all";const iv=sh.querySelector("#cV");
+    iv.oninput=()=>{const v=parseNum(iv.value);iv.value=v?n0(v):""};
+    const stp=now>=200000?10000:5000;sh.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.cs)*stp))});
+    sh.querySelectorAll("[data-csc]").forEach(b=>b.onclick=()=>{sc=b.dataset.csc;pScope=sc;sh.querySelectorAll("[data-csc]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+    const put=async(p2,msg)=>{const f2={...f,plan:p2};closeSheet();
+      try{await api("setFund",f2);funds[funds.findIndex(z=>z.id===f.id)]=f2;haptic("success");toast(msg);rerenderKeepScroll()}
+      catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет. ("+(e.message||"ошибка")+")")}};
+    sh.querySelector("#cMore").onclick=()=>{closeSheet();fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:fundLayer(f)}))};fEdit.plan.pay??=[];sub="fedit";render();window.scrollTo(0,0)};
+    const rs=sh.querySelector("#cReset");if(rs)rs.onclick=()=>{delete p.ov;delete p.st;put(p,"Сохранено на сервере ✓ · взнос снова по цели")};
+    sh.querySelector("#cOk").onclick=()=>{const x=parseNum(iv.value);
+      if(!p.s)p.s=k;
+      if(sc==="only"){p.ov={...(p.ov||{}),[k]:x};put(p,`Сохранено на сервере ✓ — только ${MONTH_NAMES[mi].toLowerCase()}`)}
+      else{p.st=(p.st||[]).filter(z=>z.ym<k).concat([{ym:k,x}]);if(p.ov)for(const m of Object.keys(p.ov))if(m>=k)delete p.ov[m];if(p.s>k)p.s=k;
+        put(p,`Сохранено на сервере ✓ — с ${MONTH_GEN[mi]} и дальше`)}}})}
 
 /* ---------- Поездки (копилка с графиком) ---------- */
 function viewTrips(f){

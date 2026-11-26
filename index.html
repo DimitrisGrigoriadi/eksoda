@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.11";
+const APP_VERSION="2026-11-26.12";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -849,7 +849,7 @@ function editSheet(kind,key){
       if(kind==="cat")applyChange({kind:"cat",c:key,v});else applyChange({kind:"inc",i:key,n:(sh.querySelector("#eN").value.trim()||"Доход"),a:v});toast("Сохраняю…")};
     const d=sh.querySelector("#eDel");if(d)d.onclick=()=>{closeSheet();applyChange({kind:"incDel",i:key})}})}
 function planYear(){
-  if(!oYear)oYear=Number(cur.slice(0,4));
+  if(!oYear)oYear=Math.max(Number(cur.slice(0,4)),planStartYear());
   const y=oYear,R=[...Array(12)].map((_,i)=>{const s=sums(ym(y,i));return{inc:s.inc,...s.plan,free:s.inc-s.planT}});
   const mx=Math.max(1,...R.map(r=>Math.max(r.inc,r.need+r.want+r.res+r.debt+r.save))),L=["need","debt","want","res","save"],K=ym(y,11),sel=oSel>=0?R[oSel]:null;
   const rowsF=(funds||[]).map(f=>({f,l:fundLayer(f),now:fundValue(f),end:fundProject(f,K)})).filter(x=>x.now||x.end);
@@ -872,7 +872,7 @@ function plan5(){if(!funds)return`<div class="empty">Нужно обновить
 function fundPct(f){const p=fundPlan(f);const t=p?.t||0;return t?fundValue(f)/t:null}
 function fundCard(f){const l=fundLayer(f),p=fundPct(f),own=fundPlan(f)?.own,neg=l==="res"?fundSim(f,12).find(x=>x.b<0):null;
   return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(p??0.999,`var(--${l})`)}<span>${p!=null?Math.round(p*100)+"%":"∞"}</span></span>
-   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em><small>${esc(fundSummary(f))} · ${n0(fundMonthly(f))} в месяц${fundRate(f)?` · ${String(f.rate).replace(".",",")}% годовых`:""}</small>${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
+   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em><small>${esc(fundSummary(f))} · ${n0(fundMonthly(f))} в месяц${fundRate(f)?` · ${String(f.rate).replace(".",",")}% годовых`:""}</small>${l!=="debt"?`<small style="color:var(--fg)">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</small>`:""}${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
 function viewFundsN(){
   if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки пока недоступны: нужно обновить код сервера в Apps Script.</div></div>`;
   const list=funds.filter(f=>fundLayer(f)!=="debt"),total=list.reduce((a,f)=>a+fundKzt(f),0);
@@ -881,6 +881,7 @@ function viewFundsN(){
     h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${l==="debt"?"осталось "+n0(fs.reduce((s,f)=>s+Math.max(0,(fundPlan(f)?.t||0)-fundValue(f)),0)):n0(fs.reduce((s,f)=>s+fundKzt(f),0))}</span></div>${fs.map(fundCard).join("")}${l==="debt"?`<button class="addc" data-act="debtNew">+ Долг</button>`:""}`}
   return`<div class="hero"><div class="top"><span class="hl">В копилках</span><button class="hbtn" data-act="fNew">+ Копилка</button></div>
    <div class="num" style="font-size:38px;margin-top:8px">${n0(total)}<i> ₸</i></div>
+   <span class="pill glass" style="margin-top:8px">к концу ${planStartYear()} накопится ≈ ${n0(list.reduce((a,f)=>a+fundProject(f,planStartYear()+"-12"),0))}</span>
    <div class="accs">${Object.entries(acc).map(([a,v])=>`<span class="glass">${esc(a)}<b>${n0(v)}</b></span>`).join("")}</div></div>
   <div class="body">${years?.goals?.length?`<div class="hintbox">Цели ${esc(years.goals.map(g=>g.n).join(", "))} переносятся в копилки. Если они не появились — обновите код сервера в Apps Script.</div>`:""}${h||`<div class="empty">Копилок пока нет.</div>`}</div>`;
 }
@@ -921,7 +922,7 @@ function viewFund(id){
   const hero=`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="fEdit">Изменить</button></div>
    <div class="hl" style="margin-top:12px">${debt?"Долг":"Копилка"} «${esc(f.n)}» · ${LAYERS[l].n.toLowerCase()}${p.own?" · личная, "+esc(p.own):""}</div>
    <div class="num" style="font-size:34px;margin:6px 0 10px">${debt?"осталось "+n0(left):money(val,f.cur).replace(" ₸","")}<i> ${f.cur==="USD"?"":"₸"}</i></div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${!debt?`<span class="pill glass">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</span>`:""}${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
    <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">Весь год</button></div></div>`;
   let b="";
   if(fdMode==="m"){

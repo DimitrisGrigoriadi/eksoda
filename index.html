@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.8";
+const APP_VERSION="2026-11-26.9";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -370,7 +370,7 @@ const covered=k=>hasOwn(k)||(!!T()&&k>=T().from);
 function planCats(k){let o={};if(hasOwn(k)){for(const[c,v]of Object.entries(months[k].plan))if(!isFundKey(c))o[c]=v}else{const t=T();o=t&&k>=t.from?{...t.cats}:{}}
   for(const c in o)if(CAT[c]?.off||CAT[c]?.auto)delete o[c];return o}
 function planInc(k){if(hasOwn(k))return months[k].incomes.map(i=>({n:i.n,a:i.a}));const t=T();return t&&k>=t.from?t.inc.map(i=>({n:i.n,a:i.a})):[]}
-function monthPlan(k){const p=planCats(k);if(covered(k))for(const i of[0,1]){const v=personalGiftMonthly(i);if(v)p["pgift"+(i+1)]=v}for(const f of funds||[]){const v=fundAt(f,k);if(v)p["fund:"+f.id]=(p["fund:"+f.id]||0)+v}return p}
+function monthPlan(k){const p=planCats(k);for(const f of funds||[]){const v=fundAt(f,k);if(v)p["fund:"+f.id]=(p["fund:"+f.id]||0)+v}return p}
 
 const fmt=n=>Math.round(n).toLocaleString("ru-RU").replace(/,/g," ")+" ₸";
 const pct=n=>Math.round(n*100)+"%";
@@ -809,15 +809,16 @@ function viewPlanN(){
   if(!t&&!own)return hero+`<div class="body">${tplOnboard()}</div>`;
   const inc=planInc(k),P=s.P;
   const fk=Object.keys(P).filter(isFundKey),debtK=fk.filter(x=>layerOf(x)==="debt");
-  const vis=g=>CATS.filter(c=>c.g===g&&!c.off&&(!c.hidden||P[c.id])&&!byFund(c.id,P)),needC=vis("need").filter(c=>!c.auto),togC=vis("want").filter(c=>!c.pers&&!c.auto),persC=vis("want").filter(c=>c.pers&&(!c.auto||P[c.id]));
+  const vis=g=>CATS.filter(c=>c.g===g&&!c.off&&(!c.hidden||P[c.id])&&!byFund(c.id,P)),needC=vis("need").filter(c=>!c.auto),togC=vis("want").filter(c=>!c.pers&&!c.auto),persC=vis("want").filter(c=>c.pers&&!c.auto);
   let h=`<div class="hintbox">Справа — сколько заложено на месяц, полоска — сколько уже ушло. Строки со стрелкой › нажимаются.${t&&own?` <b style="color:var(--fg)">В этом месяце есть свои суммы.</b>`:""}</div>
    <div class="gh"><i style="background:var(--ok)"></i>Доходы<span>${n0(s.inc)}</span></div>
    <div class="rows">${inc.map((i,x)=>`<button class="r ed" data-inc="${x}"><span>${esc(i.n)}</span><b>${n0(i.a)}</b></button>`).join("")}<button class="r" data-act="incAdd"><span class="muted">+ Доход</span></button></div>
    <div class="gh"><i style="background:var(--need)"></i>Обязательства<span>${n0(s.plan.need+s.plan.debt)}</span></div>
-   <div class="rows">${needC.map(c=>planRow(k,c.id,s,true)).join("")}${debtK.map(x=>planRow(k,x,s,false,fundSummary(fundById(x.slice(5))))).join("")}</div>
+   <div class="rows">${needC.map(c=>planRow(k,c.id,s,true)).join("")}</div>
+   <div class="sub">Долги</div><div class="rows">${(funds||[]).filter(f=>fundLayer(f)==="debt").map(f=>P["fund:"+f.id]?planRow(k,"fund:"+f.id,s,false,fundSummary(f)):`<button class="r" data-fund="${esc(f.id)}"><span>${esc(f.n)}</span><b class="muted">0</b><small>${esc(fundSummary(f))}</small></button>`).join("")}<button class="r" data-act="debtNew"><span class="muted">+ Долг</span></button></div>
    <div class="gh"><i style="background:var(--want)"></i>Жизнь<span>${n0(s.plan.want)}</span></div>
    <div class="sub">Вместе</div><div class="rows">${togC.map(c=>planRow(k,c.id,s,true)).join("")}</div>
-   <div class="sub">Личное · без отчёта</div><div class="rows">${persC.map(c=>c.auto?planRow(k,c.id,s,false,`из личных · ${n0(personalGiftYear(c.id==="pgift1"?0:1))} в год по списку подарков`):planRow(k,c.id,s,true,c.d)).join("")}</div>`;
+   <div class="sub">Личное · без отчёта</div><div class="rows">${persC.map(c=>planRow(k,c.id,s,true,c.id.startsWith("pers")?"на себя и подарки друг другу — без отчёта":c.d)).join("")}</div>`;
   const pc=planCats(k),saveCats=[...SAVE_CATS].filter(c=>pc[c]&&!byFund(c,P));
   for(const l of["res","save"]){
     const ks=fk.filter(x=>layerOf(x)===l),cats=l==="save"?saveCats:[];
@@ -874,23 +875,23 @@ function viewFundsN(){
   if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки пока недоступны: нужно обновить код сервера в Apps Script.</div></div>`;
   const list=funds.filter(f=>fundLayer(f)!=="debt"),total=list.reduce((a,f)=>a+fundKzt(f),0);
   const acc={};for(const f of list)acc[f.p||"Без счёта"]=(acc[f.p||"Без счёта"]||0)+fundKzt(f);
-  let h="";for(const l of["res","debt","save"]){const fs=funds.filter(f=>fundLayer(f)===l);if(!fs.length)continue;
-    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${l==="debt"?"осталось "+n0(fs.reduce((s,f)=>s+Math.max(0,(fundPlan(f)?.t||0)-fundValue(f)),0)):n0(fs.reduce((s,f)=>s+fundKzt(f),0))}</span></div>${fs.map(fundCard).join("")}`}
+  let h="";for(const l of["res","debt","save"]){const fs=funds.filter(f=>fundLayer(f)===l);if(!fs.length&&l!=="debt")continue;
+    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${l==="debt"?"осталось "+n0(fs.reduce((s,f)=>s+Math.max(0,(fundPlan(f)?.t||0)-fundValue(f)),0)):n0(fs.reduce((s,f)=>s+fundKzt(f),0))}</span></div>${fs.map(fundCard).join("")}${l==="debt"?`<button class="addc" data-act="debtNew">+ Долг</button>`:""}`}
   return`<div class="hero"><div class="top"><span class="hl">В копилках</span><button class="hbtn" data-act="fNew">+ Копилка</button></div>
    <div class="num" style="font-size:38px;margin-top:8px">${n0(total)}<i> ₸</i></div>
    <div class="accs">${Object.entries(acc).map(([a,v])=>`<span class="glass">${esc(a)}<b>${n0(v)}</b></span>`).join("")}</div></div>
   <div class="body">${years?.goals?.length?`<div class="hintbox">Цели ${esc(years.goals.map(g=>g.n).join(", "))} переносятся в копилки. Если они не появились — обновите код сервера в Apps Script.</div>`:""}${h||`<div class="empty">Копилок пока нет.</div>`}</div>`;
 }
-function newFundSheet(){
-  const ppl=people(),st={own:"",g:"save"};
-  openSheet(`<div class="ttl"><b>Новая копилка</b></div>
-   <div class="field"><label for="nf_n">Название</label><input id="nf_n" placeholder="Например, Новый телефон" autocomplete="off"></div>
-   <button class="sw" id="nf_own" role="switch" aria-checked="false"><span>Личная<small>из личных денег, видна обоим</small></span><i></i></button>
+function newFundSheet(pre){
+  const ppl=people(),st={own:"",g:pre||"save"},D=st.g==="debt";
+  openSheet(`<div class="ttl"><b>${D?"Новый долг":"Новая копилка"}</b></div>
+   <div class="field"><label for="nf_n">Название</label><input id="nf_n" placeholder="${D?"Например, Рассрочка Kaspi":"Например, Новый телефон"}" autocomplete="off"></div>
+   <button class="sw" id="nf_own" role="switch" aria-checked="false" ${D?"hidden":""}><span>Личная<small>из личных денег, видна обоим</small></span><i></i></button>
    <div id="nf_who" hidden><div class="fl" style="margin-bottom:5px">Чья</div><div class="chips" style="justify-content:flex-start">${(ppl.length?ppl:["Первый","Второй"]).map((p,i)=>`<button class="chip ${i?"":"on"}" data-who="${esc(p)}">${esc(p)}</button>`).join("")}</div></div>
-   <div class="fl">Что это</div><div class="chips" style="justify-content:flex-start" id="nf_g"><button class="chip on" data-g="save">Накопление</button><button class="chip" data-g="res">Резерв на траты</button><button class="chip" data-g="debt">Долг</button></div>
-   <div class="field"><label for="nf_c">На что тратится <span class="muted">(необязательно)</span></label><select id="nf_c"><option value="">—</option>${CATS.filter(c=>c.g!=="save"&&!c.auto).map(c=>`<option value="${c.id}">${esc(c.n)}</option>`).join("")}</select></div>
-   <div class="g2"><div class="field"><label for="nf_t">Цель, ₸</label><input id="nf_t" inputmode="numeric" placeholder="300 000"></div><div class="field"><label for="nf_b">К какому месяцу</label><input id="nf_b" type="month" value="${shift(nowYm(),6)}"></div></div>
-   <div class="field"><label for="nf_h">Уже лежит, ₸</label><input id="nf_h" inputmode="numeric" placeholder="0"></div>
+   <div class="fl">Что это</div><div class="chips" style="justify-content:flex-start" id="nf_g"><button class="chip ${D?"":"on"}" data-g="save">Накопление</button><button class="chip" data-g="res">Резерв на траты</button><button class="chip ${D?"on":""}" data-g="debt">Долг</button></div>
+   <div class="field" ${D?"hidden":""}><label for="nf_c">На что тратится <span class="muted">(необязательно)</span></label><select id="nf_c"><option value="">—</option>${CATS.filter(c=>c.g!=="save"&&!c.auto).map(c=>`<option value="${c.id}">${esc(c.n)}</option>`).join("")}</select></div>
+   <div class="g2"><div class="field"><label for="nf_t">${D?"Сколько отдать всего, ₸":"Цель, ₸"}</label><input id="nf_t" inputmode="numeric" placeholder="300 000"></div><div class="field"><label for="nf_b">${D?"Закрыть к":"К какому месяцу"}</label><input id="nf_b" type="month" value="${shift(nowYm(),6)}"></div></div>
+   <div class="field"><label for="nf_h">${D?"Уже отдано, ₸":"Уже лежит, ₸"}</label><input id="nf_h" inputmode="numeric" placeholder="0"></div>
    <div class="note" id="nf_calc">Взнос в месяц посчитается сам</div>
    <button class="btn w" id="nf_ok">Создать</button><button class="del" style="color:var(--muted)" id="nf_more">Сложнее: график платежей, валюта, ставка…</button>`,s=>{
     const $=id=>s.querySelector("#"+id);
@@ -1007,8 +1008,8 @@ function personalGiftsCard(gRow){
   if(!ppl[0]||!ppl[1])return`<div class="card"><h4>Личные подарки<span>друг другу</span></h4><div class="note">Чтобы подарки друг другу считались из личных денег, впишите ваши имена в «Настройках».</div><button class="btn small" data-act="settings" style="margin-top:8px">Открыть настройки</button></div>`;
   const forWho=i=>list.filter(g=>{const n=g.n.toLowerCase(),me=ppl[i].toLowerCase(),other=ppl[1-i].toLowerCase();return n.includes(other)&&!n.includes(me)||n.includes(other)&&n.includes(me)});
   return`<div class="card"><h4>Личные подарки<span>из личных денег, не из копилки</span></h4>
-   ${[0,1].map(i=>`<div class="sub" style="margin:10px 0 2px">${esc(ppl[i])} дарит · ${n0(personalGiftYear(i))} в год · ${n0(personalGiftMonthly(i))} в месяц</div>${forWho(i).map(gRow).join("")||`<div class="note">Пока нет. Добавьте подарок и поставьте галочку «Дарим друг другу».</div>`}`).join("")}
-   <div class="note" style="margin-top:8px">Эти суммы сами попадают в план «Личное» каждого.</div></div>`}
+   ${[0,1].map(i=>`<div class="sub" style="margin:10px 0 2px">${esc(ppl[i])} дарит · ${n0(personalGiftYear(i))} в год</div>${forWho(i).map(gRow).join("")||`<div class="note">Пока нет. Добавьте подарок и поставьте галочку «Дарим друг другу».</div>`}`).join("")}
+   <div class="note" style="margin-top:8px">Покупаются из личных денег каждого, отдельной строки в плане нет. Список — чтобы не забыть даты.</div></div>`}
 function giftSheet(g){gEdit=g;openSheet(giftForm().replace(/<div class="card"[^>]*>/,"<div style=\"display:flex;flex-direction:column;gap:12px\">"),s=>{
   const $=id=>s.querySelector("#"+id);
   const a=$("g_a");a.oninput=()=>{const v=parseNum(a.value);a.value=v?v.toLocaleString("ru-RU"):""};
@@ -1119,6 +1120,7 @@ document.addEventListener("click",async e=>{
     if(act==="incAdd"){if(serverOld){toast("Сначала обновите код сервера в Apps Script");return}applyChange({kind:"incAdd"});return}
     if(act==="yPrev"||act==="yNext"){oYear+=act==="yPrev"?-1:1;oSel=-1;render();return}
     if(act==="fNew"){newFundSheet();return}
+    if(act==="debtNew"){newFundSheet("debt");return}
     if(act==="fEdit"){const f=fundById(sub.slice(5));fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:"save"}))};fEdit.plan.pay??=[];if(!["res","debt","save"].includes(fEdit.plan.g))fEdit.plan.g=fundLayer(f);sub="fedit";render();window.scrollTo(0,0);return}
     if(act==="fCancel"){goBack();return}
     if(act==="gNew"){giftSheet({id:"",n:"",o:"",d:null,m:Number(cur.slice(5)),a:0,r:"year",f:false,c:""});return}

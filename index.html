@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.3";
+const APP_VERSION="2026-11-26.4";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -431,10 +431,10 @@ function allNames(){
   for(const m of Object.values(months))for(const o of m.ops)if(o.n&&!map.has(o.n.toLowerCase()))map.set(o.n.toLowerCase(),[o.n,o.c]);
   return [...map.values()];
 }
-function sums(k){
+const byFund=(c,P)=>{const f=fundFor(c);return!!f&&!!P["fund:"+f.id]};function sums(k){
   const m=months[k]||{plan:{},ops:[],incomes:[]},P=monthPlan(k),L=()=>({need:0,want:0,res:0,debt:0,save:0});
   const plan=L(),fact=L(),byCat={};
-  for(const[c,v]of Object.entries(P)){if(!isFundKey(c)&&!CAT[c])continue;plan[layerOf(c)]+=v}
+  for(const[c,v]of Object.entries(P)){if(!isFundKey(c)&&(!CAT[c]||byFund(c,P)))continue;plan[layerOf(c)]+=v}
   for(const o of m.ops){if(o.s==="out")continue;if(!isFundKey(o.c)&&!CAT[o.c])continue;fact[layerOf(o.c)]+=o.a;byCat[o.c]=(byCat[o.c]||0)+o.a}
   const inc=planInc(k).reduce((s,i)=>s+i.a,0),sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
   return{P,plan,fact,byCat,inc,planT:sum(plan),factT:sum(fact),spendP:plan.need+plan.debt+plan.want,spendF:fact.need+fact.debt+fact.want,putP:plan.res+plan.save,putF:fact.res+fact.save};
@@ -792,7 +792,7 @@ function moreSheet(){
 
 /* ---------- План ---------- */
 function planRow(k,c,s,editable,note){const v=s.P[c]||0,f=s.byCat[c]||0,info=catInfo(c),col=LAYERS[layerOf(c)].c,paid=["flat","util","tax","credit","subs","parents"].includes(c);
-  const tail=note!=null?note:(f?`${paid?"оплачено":"потрачено"} ${n0(f)}${v?(f>v?" · перерасход "+n0(f-v):f===v?" · всё":" · осталось "+n0(v-f)):""}`:info.d?esc(info.d):"");
+  const fdl=!isFundKey(c)&&fundFor(c);const tail=note!=null?note:fdl&&!f?"обычно из копилки «"+esc(fdl.n)+"»":(f?`${paid?"оплачено":"потрачено"} ${n0(f)}${v?(f>v?" · перерасход "+n0(f-v):f===v?" · всё":" · осталось "+n0(v-f)):""}`:info.d?esc(info.d):"");
   return`<button class="r ${editable?"ed":""}" ${editable?`data-pr="${c}"`:isFundKey(c)?`data-fund="${c.slice(5)}"`:""}><span>${esc(info.n)}</span><b>${n0(v)}</b>${tail?`<small class="${f>v&&v?"over":""}">${tail}</small>`:""}${v||f?`<span class="tr"><i style="width:${v?Math.min(100,f/v*100):100}%;background:${f>v&&v?"var(--bad)":col}"></i></span>`:""}</button>`}
 function viewPlanN(){
   const k=cur,s=sums(k),t=T(),free=s.inc-s.planT,base=s.inc||1,own=hasOwn(k);
@@ -807,7 +807,7 @@ function viewPlanN(){
   if(!t&&!own)return hero+`<div class="body">${tplOnboard()}</div>`;
   const inc=planInc(k),P=s.P;
   const fk=Object.keys(P).filter(isFundKey),debtK=fk.filter(x=>layerOf(x)==="debt");
-  const needC=SPEND_PLAN("need").filter(c=>!c.auto),togC=SPEND_PLAN("want").filter(c=>!c.pers&&!c.auto),persC=SPEND_PLAN("want").filter(c=>c.pers&&(!c.auto||P[c.id]));
+  const vis=g=>CATS.filter(c=>c.g===g&&!c.off&&(!c.hidden||P[c.id])&&!byFund(c.id,P)),needC=vis("need").filter(c=>!c.auto),togC=vis("want").filter(c=>!c.pers&&!c.auto),persC=vis("want").filter(c=>c.pers&&(!c.auto||P[c.id]));
   let h=`<div class="hintbox">Справа — сколько заложено на месяц, полоска — сколько уже ушло. Строки со стрелкой › нажимаются.${t&&own?` <b style="color:var(--fg)">В этом месяце есть свои суммы.</b>`:""}</div>
    <div class="gh"><i style="background:var(--ok)"></i>Доходы<span>${n0(s.inc)}</span></div>
    <div class="rows">${inc.map((i,x)=>`<button class="r ed" data-inc="${x}"><span>${esc(i.n)}</span><b>${n0(i.a)}</b></button>`).join("")}<button class="r" data-act="incAdd"><span class="muted">+ Доход</span></button></div>
@@ -816,7 +816,7 @@ function viewPlanN(){
    <div class="gh"><i style="background:var(--want)"></i>Жизнь<span>${n0(s.plan.want)}</span></div>
    <div class="sub">Вместе</div><div class="rows">${togC.map(c=>planRow(k,c.id,s,true)).join("")}</div>
    <div class="sub">Личное · без отчёта</div><div class="rows">${persC.map(c=>c.auto?planRow(k,c.id,s,false,`из личных · ${n0(personalGiftYear(c.id==="pgift1"?0:1))} в год по списку подарков`):planRow(k,c.id,s,true,c.d)).join("")}</div>`;
-  const pc=planCats(k),saveCats=[...SAVE_CATS].filter(c=>pc[c]);
+  const pc=planCats(k),saveCats=[...SAVE_CATS].filter(c=>pc[c]&&!byFund(c,P));
   for(const l of["res","save"]){
     const ks=fk.filter(x=>layerOf(x)===l),cats=l==="save"?saveCats:[];
     const idle=(funds||[]).filter(f=>fundLayer(f)===l&&!P["fund:"+f.id]&&!(f.c&&cats.includes(f.c)));

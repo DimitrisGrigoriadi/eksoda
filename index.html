@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.4";
+const APP_VERSION="2026-11-26.5";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -409,7 +409,7 @@ function ingest(d,quiet){
   for(const [m,p] of Object.entries(d.plan))ensure(m).plan=p;
   for(const [m,l] of Object.entries(d.incomes))ensure(m).incomes=l;
   for(const o of d.ops)ensure(o.d.slice(0,7)).ops.push(o);
-  gifts=d.gifts||null;funds=d.funds||null;years=d.years||null;applyPeople();
+  gifts=d.gifts||null;funds=d.funds||null;years=d.years||null;applyPeople();serverOld=!("years" in d)||!("funds" in d)||!!(d.funds||[]).some(f=>!("plan" in f));
   if(!quiet)render();
 }
 function fatal(e){
@@ -470,7 +470,7 @@ async function applyChange(ch){
   for(const[k2,v]of Object.entries(out)){const m=ensure(k2);m.plan=v.plan;m.incomes=v.incomes.map((i,x)=>({id:"tmp"+x,...i}))}
   rerenderKeepScroll();
   try{if(scope==="all")await api("setYear",{year:"template",data:t});if(Object.keys(out).length){const d=await api("applyYear",{months:out});ingest(d,true)}}
-  catch(e){haptic("error");toast("Не сохранилось, проверьте интернет.");await load(true)}
+  catch(e){haptic("error");toast(e.message==="unknown_action"?"Не сохранилось: на сервере старый код. Обновите его в Apps Script.":"Не сохранилось, проверьте интернет. ("+(e.message||"ошибка")+")");await load(true)}
 }
 function groupByName(ops){const by={};for(const o of ops){(by[o.n]??={n:o.n,c:o.c,k:0,s:0});by[o.n].k++;by[o.n].s+=o.a}return by}
 function facts(m){
@@ -626,6 +626,7 @@ function readFundForm(){
 
 /* ================= New look: views ================= */
 tab="home";
+let serverOld=false;
 let sub=null, planMode="M", stMode="m", fdMode="m", gMode="m", prevTab="home", sayOpen=false, moreOpen=false;
 const n0=v=>Math.round(v).toLocaleString("ru-RU").replace(/[  ,]/g," ");
 const tys=v=>Math.abs(v)>=1e6?(v/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн":Math.round(v/1000)+" тыс";
@@ -661,6 +662,7 @@ function render(){
   else if(sub&&sub.startsWith("fund:"))h=viewFund(sub.slice(5));else if(sub==="fedit")h=viewFundEdit();
   else if(tab!=="add"&&tab!=="funds"&&!covered(cur))h=`<div class="hero"><div class="top">${wm}${msw()}</div></div><div class="body">${noMonth().replace(/<\/?section>/g,"")}</div>`;
   else h=({home:viewHome,spend:viewSpend,add:viewAddN,plan:viewPlanN,funds:viewFundsN})[tab]();
+  if(serverOld&&!sub&&["home","plan","funds"].includes(tab))h=h.replace('<div class="body">','<div class="body">'+`<div class="hintbox" style="background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--fg)"><b>На сервере старый код.</b> Изменения плана не сохранятся, копилки и подарки не видны. Обновите код в Apps Script — инструкция в чате с Claude.</div>`);
   v.innerHTML=h;
   bindView();backBtn();
 }
@@ -827,6 +829,7 @@ function viewPlanN(){
   return hero+`<div class="body">${h}</div>`;
 }
 function editSheet(kind,key){
+  if(serverOld){toast("Сначала обновите код сервера в Apps Script — иначе сумма не сохранится");return}
   const t=T(),k=cur,s=sums(k);let name,val,spent="";
   if(kind==="cat"){name=CAT[key].n;val=planCats(k)[key]||0;const f=s.byCat[key]||0;spent=f?"потрачено "+n0(f):""}
   else{const i=planInc(k)[key];name=i.n;val=i.a}
@@ -1113,7 +1116,7 @@ document.addEventListener("click",async e=>{
     if(act==="ops"){sub="ops";render();window.scrollTo(0,0);return}
     if(act==="statement"){toast("Выписки Kaspi, Freedom и Halyk подключим, когда будет пример файла");return}
     if(act==="nextFact"){hlIdx++;render();return}
-    if(act==="incAdd"){applyChange({kind:"incAdd"});return}
+    if(act==="incAdd"){if(serverOld){toast("Сначала обновите код сервера в Apps Script");return}applyChange({kind:"incAdd"});return}
     if(act==="yPrev"||act==="yNext"){oYear+=act==="yPrev"?-1:1;oSel=-1;render();return}
     if(act==="fNew"){newFundSheet();return}
     if(act==="fEdit"){const f=fundById(sub.slice(5));fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:"save"}))};fEdit.plan.pay??=[];if(!["res","debt","save"].includes(fEdit.plan.g))fEdit.plan.g=fundLayer(f);sub="fedit";render();window.scrollTo(0,0);return}

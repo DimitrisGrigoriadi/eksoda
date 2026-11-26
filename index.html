@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.1";
+const APP_VERSION="2026-11-26.2";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -816,8 +816,12 @@ function viewPlanN(){
    <div class="gh"><i style="background:var(--want)"></i>Жизнь<span>${n0(s.plan.want)}</span></div>
    <div class="sub">Вместе</div><div class="rows">${togC.map(c=>planRow(k,c.id,s,true)).join("")}</div>
    <div class="sub">Личное · без отчёта</div><div class="rows">${persC.map(c=>c.auto?planRow(k,c.id,s,false,`из личных · ${n0(personalGiftYear(c.id==="pgift1"?0:1))} в год по списку подарков`):planRow(k,c.id,s,true,c.d)).join("")}</div>`;
-  for(const l of["res","save"]){const ks=fk.filter(x=>layerOf(x)===l);if(!ks.length)continue;
-    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${n0(s.plan[l])}</span></div><div class="rows">${ks.map(x=>{const f=fundById(x.slice(5));return planRow(k,x,s,false,fundSummary(f)+(fundPlan(f)?.own?" · личная, "+fundPlan(f).own:""))}).join("")}</div>`}
+  const pc=planCats(k),saveCats=[...SAVE_CATS].filter(c=>pc[c]);
+  for(const l of["res","save"]){
+    const ks=fk.filter(x=>layerOf(x)===l),cats=l==="save"?saveCats:[];
+    const idle=(funds||[]).filter(f=>fundLayer(f)===l&&!P["fund:"+f.id]&&!(f.c&&cats.includes(f.c)));
+    if(!ks.length&&!cats.length&&!idle.length)continue;
+    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${n0(s.plan[l])}</span></div><div class="rows">${cats.map(c=>planRow(k,c,s,true,"в копилку · сумма задаётся здесь")).join("")}${ks.filter(x=>!cats.includes(fundById(x.slice(5))?.c)).map(x=>{const f=fundById(x.slice(5));return planRow(k,x,s,false,fundSummary(f)+(fundPlan(f)?.own?" · личная, "+fundPlan(f).own:""))}).join("")}${idle.map(f=>`<button class="r" data-fund="${esc(f.id)}"><span>${esc(f.n)}</span><b class="muted">0</b><small>${fundPlan(f)?.s>k?"взносы с "+ymText(fundPlan(f).s):fundPlan(f)?"в этом месяце взноса нет":"цель не задана — нажми, чтобы задать"}</small></button>`).join("")}</div>`}
   h+=`<button class="addc" data-act="settings">+ Своя категория или убрать лишнюю</button>
    <div class="note" style="padding:0 4px">Взносы в копилки и платежи по долгам считаются из целей и сроков — меняются в самой копилке.</div>`;
   return hero+`<div class="body">${h}</div>`;
@@ -872,7 +876,7 @@ function viewFundsN(){
   return`<div class="hero"><div class="top"><span class="hl">В копилках</span><button class="hbtn" data-act="fNew">+ Копилка</button></div>
    <div class="num" style="font-size:38px;margin-top:8px">${n0(total)}<i> ₸</i></div>
    <div class="accs">${Object.entries(acc).map(([a,v])=>`<span class="glass">${esc(a)}<b>${n0(v)}</b></span>`).join("")}</div></div>
-  <div class="body">${h||`<div class="empty">Копилок пока нет.</div>`}</div>`;
+  <div class="body">${years?.goals?.length?`<div class="hintbox">Цели ${esc(years.goals.map(g=>g.n).join(", "))} переносятся в копилки. Если они не появились — обновите код сервера в Apps Script.</div>`:""}${h||`<div class="empty">Копилок пока нет.</div>`}</div>`;
 }
 function newFundSheet(){
   const ppl=people(),st={own:"",g:"save"};
@@ -904,6 +908,7 @@ function viewFund(id){
   const f=fundById(id);if(!f){sub=null;return viewFundsN()}
   const p=fundPlan(f)||{},l=fundLayer(f),k="fund:"+id;
   if(p.mode==="gifts")return viewGiftsN(f);
+  if(p.mode==="schedule"||f.c==="trip")return viewTrips(f);
   const s=sums(cur),planIn=s.P[k]||0,factIn=s.byCat[k]||0,outs=(M()?.ops||[]).filter(o=>o.s==="out"&&o.f===id),ev=fundEvents(f,cur,cur),mi=Number(cur.slice(5))-1;
   const debt=l==="debt",val=fundValue(f),left=Math.max(0,(p.t||0)-val);
   const hero=`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="fEdit">Изменить</button></div>
@@ -929,6 +934,47 @@ function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
   return`<div class="hero" style="padding-bottom:34px"><div class="top"><button class="hbtn" data-act="fCancel">‹ Назад</button></div><div class="hl" style="margin-top:12px">${fEdit.id?"Изменить":"Новая копилка или долг"}</div><div class="num" style="font-size:28px">${esc(fEdit.n||"Без названия")}</div></div>
    <div class="body">${fundForm().replace('<div class="card"','<div class="card" style="display:flex;flex-direction:column;gap:12px"').replace(/class="btn ghost"/,'class="btn ghost" ')}</div>`}
 
+
+/* ---------- Поездки (копилка с графиком) ---------- */
+function viewTrips(f){
+  const p=fundPlan(f)||{},k="fund:"+f.id,s=sums(cur),mi=Number(cur.slice(5))-1,trip=f.c==="trip",W=trip?"Поездка":"Платёж";
+  const pay=p.mode==="schedule"?(p.pay||[]).map((r,i)=>({...r,i})).filter(r=>r.ym).sort((a,b)=>a.ym.localeCompare(b.ym)):[];
+  const sim=p.mode==="schedule"?fundSim(f,72):[],bal=ymk=>{const x=sim.find(z=>z.k===ymk);return x?x.b:null};
+  const ev=p.mode==="schedule"?fundEvents(f,cur,cur):[],outs=(M()?.ops||[]).filter(o=>o.s==="out"&&o.f===f.id);
+  const planIn=s.P[k]||0,factIn=s.byCat[k]||0;
+  const row=r=>{const b=bal(p.rep?cur.slice(0,4)+r.ym.slice(4):r.ym);return`<button class="gf" data-trip="${r.i}"><span class="dd">${MONTH_NAMES[Number(r.ym.slice(5))-1].slice(0,3)}<small>${p.rep?"кажд.":r.ym.slice(0,4)}</small></span><span>${esc(r.n||W)}<small>${b==null?"":b<0?`<span style="color:var(--bad)">не хватит ${n0(-b)}</span>`:"к этому месяцу хватит"}</small></span><b>${n0(r.a)}</b></button>`};
+  let b;
+  if(fdMode==="m")b=`<div class="card"><h4>${MONTH_NAMES[mi]}<span>по плану</span></h4>
+     <div class="wf"><span>Взнос по плану</span><b>${n0(planIn)}</b></div><div class="wf"><span>Уже внесено</span><b>${n0(factIn)}${factIn>=planIn&&planIn?" ✓":""}</b></div>
+     ${ev.map(e=>`<div class="wf"><span>${esc(e.n||W)}</span><b>−${n0(e.a)}</b></div>`).join("")}${outs.map(o=>`<div class="wf"><span>${esc(o.n)} · ${dShort(o.d)}</span><b>−${n0(o.a)}</b></div>`).join("")}
+     ${planIn>factIn?`<button class="btn acc w" style="margin-top:10px" data-act="putin" data-k="${k}">Записать взнос · ${n0(planIn-factIn)}</button>`:""}</div>
+    <div class="card"><h4>${trip?"Ближайшие поездки":"Ближайшие платежи"}<span>${pay.length}</span></h4>${pay.filter(r=>p.rep||r.ym>=cur).slice(0,3).map(row).join("")||`<div class="note">Пока ничего. Нажми «+ ${W}».</div>`}</div>`;
+  else b=`<div class="card"><h4>${trip?"Все поездки":"Все платежи"}<span>${n0(pay.reduce((a,r)=>a+r.a,0))}${p.rep?" в год":""}</span></h4>${pay.map(row).join("")||`<div class="note">Пока ничего. Нажми «+ ${W}».</div>`}</div>
+    ${p.mode==="schedule"?`<button class="sw card" id="trRep" role="switch" aria-checked="${!!p.rep}" style="padding:12px 14px"><span>Повторяются каждый год<small>${p.rep?"взнос одинаковый каждый год":"каждая поездка — один раз"}</small></span><i></i></button>`:""}`;
+  return`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="tripNew">+ ${W}</button></div>
+   <div class="hl" style="margin-top:12px">Копилка «${esc(f.n)}»${p.own?" · личная, "+esc(p.own):""}</div>
+   <div class="num" style="font-size:34px;margin:6px 0 10px">${n0(fundValue(f))}<i> ₸</i></div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill glass">+${n0(fundMonthly(f))} в месяц</span><span class="pill glass">${pay.length} ${trip?plural(pay.length,"поездка","поездки","поездок"):plural(pay.length,"платёж","платежа","платежей")}</span>${fundNote(f)?`<span class="pill glass">${fundNote(f)}</span>`:""}</div>
+   <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">${trip?"Все поездки":"Все платежи"}</button></div></div>
+   <div class="body">${b}<button class="addc" data-act="fEdit">Другие настройки копилки</button></div>`;
+}
+async function saveTripPlan(f,mut){
+  const p=JSON.parse(JSON.stringify(fundPlan(f)||{g:"res"}));
+  if(p.mode!=="schedule"){p.mode="schedule";p.pay=[];p.s=p.s&&p.s>=nowYm()?p.s:shift(nowYm(),1);p.rep=false}
+  p.pay??=[];mut(p);p.pay=p.pay.filter(r=>r.ym&&r.a);p.h=fundValue(f);
+  const f2={...f,plan:p};try{await api("setFund",f2);const i=funds.findIndex(x=>x.id===f.id);funds[i]=f2;haptic("success");toast(`Сохранено · ${n0(fundMonthly(f2))} в месяц`);rerenderKeepScroll()}
+  catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет.")}}
+function tripSheet(f,i){
+  const p=fundPlan(f)||{},r=i!=null?p.pay[i]:{ym:shift(nowYm(),3),a:0,n:""},W=f.c==="trip"?"Поездка":"Платёж";
+  openSheet(`<div class="ttl"><b>${i!=null?esc(r.n||W):"Новая "+W.toLowerCase()}</b></div>
+   <div class="field"><label for="tp_n">Куда / что</label><input id="tp_n" value="${esc(r.n||"")}" placeholder="${f.c==="trip"?"Например, Стамбул":"Например, налог"}" autocomplete="off"></div>
+   <div class="g2"><div class="field"><label for="tp_m">Месяц</label><input id="tp_m" type="month" value="${esc(r.ym||"")}"></div><div class="field"><label for="tp_a">Сколько нужно, ₸</label><input id="tp_a" inputmode="numeric" value="${r.a?n0(r.a):""}" placeholder="600 000"></div></div>
+   <button class="btn w" id="tp_ok">Сохранить</button>${i!=null?`<button class="del" id="tp_del">Удалить</button>`:""}`,s=>{
+    const $=id=>s.querySelector("#"+id);$("tp_a").oninput=()=>{const v=parseNum($("tp_a").value);$("tp_a").value=v?n0(v):""};
+    $("tp_ok").onclick=()=>{const row={ym:$("tp_m").value,a:parseNum($("tp_a").value),n:$("tp_n").value.trim()};
+      if(!row.ym||!row.a){toast("Укажите месяц и сумму");return}closeSheet();saveTripPlan(f,p2=>{if(i!=null)p2.pay[i]=row;else p2.pay.push(row)})};
+    const d=$("tp_del");if(d){let armed=false;d.onclick=()=>{if(!armed){armed=true;d.textContent="Точно удалить?";return}closeSheet();saveTripPlan(f,p2=>{p2.pay.splice(i,1)})}}})}
+
 /* ---------- Подарки ---------- */
 function viewGiftsN(f){
   if(!gifts)return`<div class="hero"><div class="top">${back("funds","Копилки")}</div></div><div class="body"><div class="empty">Список подарков пока недоступен: нужно обновить код сервера.</div></div>`;
@@ -949,8 +995,17 @@ function viewGiftsN(f){
    <div class="hl" style="margin-top:12px">Копилка «${esc(f.n)}»</div><div class="num" style="font-size:34px;margin:6px 0 10px">${n0(fundValue(f))}<i> ₸</i></div>
    <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill glass">+${n0(fundMonthly(f))} в месяц</span><span class="pill glass">${n0(t.year)} в год</span></div>
    <div class="hseg"><button data-gm="m" aria-pressed="${gMode==="m"}">${MONTH_NAMES[mm-1]}</button><button data-gm="y" aria-pressed="${gMode==="y"}">Весь год</button></div></div>
-   <div class="body">${b}<div class="note" style="padding:0 4px">Подарки друг другу помечены «из личных»: они не входят в эту копилку, а копятся в личном плане каждого.</div></div>`;
+   <div class="body">${b}${personalGiftsCard(gRow)}</div>`;
 }
+
+function personalGiftsCard(gRow){
+  const ppl=(T()?.people||[]).map(x=>(x||"").trim());
+  const list=(gifts||[]).filter(isPersonalGift).sort(byDay);
+  if(!ppl[0]||!ppl[1])return`<div class="card"><h4>Личные подарки<span>друг другу</span></h4><div class="note">Чтобы подарки друг другу считались из личных денег, впишите ваши имена в «Настройках».</div><button class="btn small" data-act="settings" style="margin-top:8px">Открыть настройки</button></div>`;
+  const forWho=i=>list.filter(g=>{const n=g.n.toLowerCase(),me=ppl[i].toLowerCase(),other=ppl[1-i].toLowerCase();return n.includes(other)&&!n.includes(me)||n.includes(other)&&n.includes(me)});
+  return`<div class="card"><h4>Личные подарки<span>из личных денег, не из копилки</span></h4>
+   ${[0,1].map(i=>`<div class="sub" style="margin:10px 0 2px">${esc(ppl[i])} дарит · ${n0(personalGiftYear(i))} в год · ${n0(personalGiftMonthly(i))} в месяц</div>${forWho(i).map(gRow).join("")||`<div class="note">Пока нет. Добавьте подарок и поставьте галочку «Дарим друг другу».</div>`}`).join("")}
+   <div class="note" style="margin-top:8px">Эти суммы сами попадают в план «Личное» каждого.</div></div>`}
 function giftSheet(g){gEdit=g;openSheet(giftForm().replace(/<div class="card"[^>]*>/,"<div style=\"display:flex;flex-direction:column;gap:12px\">"),s=>{
   const $=id=>s.querySelector("#"+id);
   const a=$("g_a");a.oninput=()=>{const v=parseNum(a.value);a.value=v?v.toLocaleString("ru-RU"):""};
@@ -1067,6 +1122,7 @@ document.addEventListener("click",async e=>{
     if(act==="putin"){a.disabled=true;const k=a.dataset.k,s=sums(cur),r=(s.P[k]||0)-(s.byCat[k]||0);
       try{const o=await api("addOp",putInOp(k,r));ensure(o.d.slice(0,7)).ops.push(o);haptic("success");toast(`Записано ${n0(r)} ₸`);rerenderKeepScroll()}catch(x){haptic("error");toast("Не сохранилось. Проверьте интернет.");a.disabled=false}return}
     if(act==="more"){moreSheet();return}
+    if(act==="tripNew"){tripSheet(fundById(sub.slice(5)));return}
     if(act==="say"){sayOpen=true;render();return}
   }
   const op=t.closest("[data-op]");if(op){opSheet(op.dataset.op);return}
@@ -1079,6 +1135,8 @@ document.addEventListener("click",async e=>{
   const fdm=t.closest("[data-fd]");if(fdm){fdMode=fdm.dataset.fd;rerenderKeepScroll();return}
   const gm=t.closest("[data-gm]");if(gm){gMode=gm.dataset.gm;rerenderKeepScroll();return}
   const stm=t.closest("[data-stm]");if(stm){stMode=stm.dataset.stm;render();return}
+  const tp=t.closest("[data-trip]");if(tp){const f=fundById(sub.slice(5));tripSheet(f,Number(tp.dataset.trip));return}
+  if(t.closest("#trRep")){const f=fundById(sub.slice(5));saveTripPlan(f,p2=>{p2.rep=!p2.rep});return}
   const gr=t.closest("[data-g]");if(gr&&gifts){const g=gifts.find(x=>x.id===gr.dataset.g);if(g)giftSheet({...g});return}
   const bub=t.closest("[data-cat]");if(bub){catSheet(bub.dataset.cat);return}
   if(tab!=="add")return;

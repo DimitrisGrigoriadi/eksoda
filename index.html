@@ -559,8 +559,8 @@ function fundSched(f){
   if(p.mode==="schedule"&&!p.rep){let cum=0,x=0;for(const e of ev){cum+=e.a;x=Math.max(x,(cum-h)/monthsBetween(p.s,e.ym))}return{S:ceilK(Math.max(0,x)),C:0,end:""}}
   const S=ceilK(p.mode==="gifts"?(giftTotals().year+giftTotals().once)/12:(p.pay||[]).reduce((a,r)=>a+(r.a||0),0)/12);
   let cum=0,C=0,end="";
-  for(const e of ev){cum+=e.a;const n=monthsBetween(p.s,e.ym),need=cum-h-S*n;if(need>0){C=Math.max(C,need/n);end=e.ym}}
-  return{S,C:C?ceilK(C):0,end};
+  const NE=ev.map(e=>{cum+=e.a;const n=monthsBetween(p.s,e.ym);return{ym:e.ym,n,need:cum-h-S*n}});for(const x of NE)if(x.need>0&&x.need/x.n>C){C=x.need/x.n;end=x.ym}if(C){C=ceilK(C);for(const x of NE)if(x.ym>end&&x.need-C*monthsBetween(p.s,end)>0)end=x.ym}
+  return{S,C,end};
 }
 function fundActive(f,k){const p=fundPlan(f);if(!p||!p.s||k<p.s)return false;
   if(p.mode==="target")return!!p.b&&k<=p.b;

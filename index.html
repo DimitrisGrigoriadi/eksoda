@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.5";
+const APP_VERSION="2026-11-26.6";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1048,7 +1048,7 @@ function viewStatsN(){
 function viewSettings(){
   const t=T(),ppl=t?.people||["",""],box=c=>`<label class="chk"><input type="checkbox" data-catoff="${c.id}" ${c.off?"":"checked"}>${esc(c.n)}${c.custom?` <button class="del" data-catdel="${c.id}" aria-label="Удалить категорию" style="padding:0 4px">×</button>`:""}</label>`;
   const all=g=>CATS.filter(c=>c.g===g&&!c.hidden&&!c.auto&&!c.id.startsWith("pers"));
-  return`<div class="hero" style="padding-bottom:34px"><div class="top">${back("home","Главная")}</div><div class="hl" style="margin-top:12px">Настройки</div><div class="num" style="font-size:28px">Бюджет</div></div>
+  return`<div class="hero" style="padding-bottom:34px"><div class="top">${back("home","Главная")}</div><div class="hl" style="margin-top:12px">Настройки · версия ${APP_VERSION}</div><div class="num" style="font-size:28px">Бюджет</div></div>
   <div class="body">${t?`
    <div class="card"><h4>Кто ведёт бюджет<span>для личных денег</span></h4><div class="g2"><input id="pp0" value="${esc(ppl[0]||"")}" placeholder="Имя" aria-label="Имя первого"><input id="pp1" value="${esc(ppl[1]||"")}" placeholder="Имя" aria-label="Имя второго"></div></div>
    <div class="card"><h4>Доли от дохода<span>расходы / резервы / копилки</span></h4><div class="g2"><div class="field"><label for="tg_r">Резервы, %</label><input id="tg_r" inputmode="numeric" value="${tgt().res}"></div><div class="field"><label for="tg_s">Копилки, %</label><input id="tg_s" inputmode="numeric" value="${tgt().save}"></div></div><div class="note" style="margin-top:6px">Расходы — всё остальное: ${100-tgt().res-tgt().save}%.</div></div>

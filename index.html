@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.10";
+const APP_VERSION="2026-11-26.11";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -872,7 +872,7 @@ function plan5(){if(!funds)return`<div class="empty">Нужно обновить
 function fundPct(f){const p=fundPlan(f);const t=p?.t||0;return t?fundValue(f)/t:null}
 function fundCard(f){const l=fundLayer(f),p=fundPct(f),own=fundPlan(f)?.own,neg=l==="res"?fundSim(f,12).find(x=>x.b<0):null;
   return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(p??0.999,`var(--${l})`)}<span>${p!=null?Math.round(p*100)+"%":"∞"}</span></span>
-   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em><small>${esc(fundSummary(f))} · ${n0(fundMonthly(f))} в месяц</small>${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
+   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em><small>${esc(fundSummary(f))} · ${n0(fundMonthly(f))} в месяц${fundRate(f)?` · ${String(f.rate).replace(".",",")}% годовых`:""}</small>${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
 function viewFundsN(){
   if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки пока недоступны: нужно обновить код сервера в Apps Script.</div></div>`;
   const list=funds.filter(f=>fundLayer(f)!=="debt"),total=list.reduce((a,f)=>a+fundKzt(f),0);
@@ -894,6 +894,7 @@ function newFundSheet(pre){
    <div class="field" ${D?"hidden":""}><label for="nf_c">На что тратится <span class="muted">(необязательно)</span></label><select id="nf_c"><option value="">—</option>${CATS.filter(c=>c.g!=="save"&&!c.auto).map(c=>`<option value="${c.id}">${esc(c.n)}</option>`).join("")}</select></div>
    <div class="g2"><div class="field"><label for="nf_t">${D?"Сколько отдать всего, ₸":"Цель, ₸"}</label><input id="nf_t" inputmode="numeric" placeholder="300 000"></div><div class="field"><label for="nf_b">${D?"Закрыть к":"К какому месяцу"}</label><input id="nf_b" type="month" value="${shift(nowYm(),6)}"></div></div>
    <div class="field"><label for="nf_h">${D?"Уже отдано, ₸":"Уже лежит, ₸"}</label><input id="nf_h" inputmode="numeric" placeholder="0"></div>
+   ${D?"":`<div class="field"><label for="nf_r">Ставка депозита, % годовых <span class="muted">(если есть)</span></label><input id="nf_r" inputmode="decimal" placeholder="14"></div>`}
    <div class="note" id="nf_calc">Взнос в месяц посчитается сам</div>
    <button class="btn w" id="nf_ok">Создать</button><button class="del" style="color:var(--muted)" id="nf_more">Сложнее: график платежей, валюта, ставка…</button>`,s=>{
     const $=id=>s.querySelector("#"+id);
@@ -907,7 +908,7 @@ function newFundSheet(pre){
     $("nf_ok").onclick=async()=>{const n=$("nf_n").value.trim(),t=parseNum($("nf_t").value),b=$("nf_b").value,h=parseNum($("nf_h").value),s0=shift(nowYm(),1);
       if(!n){toast("Введите название");return}if(!t||!b){toast("Укажите цель и месяц");return}if(b<s0){toast("Месяц уже прошёл");return}
       const own=$("nf_own").getAttribute("aria-checked")==="true"?(s.querySelector("[data-who].on")?.dataset.who||""):"";
-      const f={id:"",n,c:$("nf_c").value,p:"",cur:"KZT",rate:"",start:0,bal:h||null,bd:h?todayStr():"",fx:null,note:"",plan:{mode:"target",t,s:s0,b,h,g:st.g,...(own?{own}:{})}};
+      const f={id:"",n,c:$("nf_c").value,p:"",cur:"KZT",rate:(s.querySelector("#nf_r")?.value||"").trim().replace(",","."),start:0,bal:h||null,bd:h?todayStr():"",fx:null,note:"",plan:{mode:"target",t,s:s0,b,h,g:st.g,...(own?{own}:{})}};
       $("nf_ok").disabled=true;try{const r=await api("setFund",f);f.id=r.id;funds.push(f);closeSheet();haptic("success");toast(`Создано · ${n0(fundMonthly(f))} в месяц`);render()}
       catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет.");$("nf_ok").disabled=false}}})}
 function viewFund(id){
@@ -927,6 +928,7 @@ function viewFund(id){
     b=`<div class="card"><h4>${MONTH_NAMES[mi]}<span>по плану</span></h4>
      <div class="wf"><span>${debt?"Платёж":"Взнос"} по плану</span><b>${n0(planIn)}</b></div>
      <div class="wf"><span>${debt?"Уже отдано":"Уже внесено"}</span><b>${n0(factIn)}${factIn>=planIn&&planIn?" ✓":""}</b></div>
+     ${!debt&&fundRate(f)?`<div class="wf"><span>Доход по депозиту · ${String(f.rate).replace(".",",")}% годовых</span><b>+${n0(fundCalc(f).earned)} всего</b></div><div class="wf"><span>В следующем месяце прибавится</span><b>≈ +${n0(Math.max(0,val)*fundRate(f))}</b></div>`:""}
      ${ev.map(e=>`<div class="wf"><span>${esc(e.n||"Трата")} по плану</span><b>−${n0(e.a)}</b></div>`).join("")}
      ${outs.map(o=>`<div class="wf"><span>${esc(o.n)} · ${dShort(o.d)}</span><b>−${n0(o.a)}</b></div>`).join("")}
      ${planIn>factIn?`<button class="btn acc w" style="margin-top:10px" data-act="putin" data-k="${k}">${debt?"Записать платёж":"Записать взнос"} · ${n0(planIn-factIn)}</button>`:""}</div>
@@ -1209,6 +1211,23 @@ function applyChange(ch){
     catch(e){pendingSaves--;haptic("error");toast(e.message==="unknown_action"?"Не сохранилось: на сервере старый код.":"Не сохранилось, проверьте интернет. ("+(e.message||"ошибка")+")");if(!pendingSaves)await load(true)}});
   return saveQ;
 }
+
+/* Депозитный процент: в начале каждого следующего месяца к остатку прибавляется доход
+   (ставка / 12 от остатка на конец прошлого месяца). Для долгов не считается. */
+const fundRate=f=>fundLayer(f)==="debt"?0:Math.max(0,Number(String(f.rate||"").replace(",","."))||0)/100/12;
+function fundCalc(f){
+  let v=f.bal!=null?f.bal:(f.start||0),earned=0;const r=fundRate(f),ops=[];
+  for(const o of allOps()){if(f.bal!=null&&f.bd&&o.d<=f.bd)continue;const k=opIntoFund(o,f);if(k)ops.push({d:o.d,a:k*o.a})}
+  ops.sort((a,b)=>a.d.localeCompare(b.d));
+  if(!r)return{v:v+ops.reduce((s,o)=>s+o.a,0),earned:0};
+  const now=nowYm();let k=(f.bal!=null&&f.bd?f.bd:(ops[0]?.d||todayStr())).slice(0,7),i=0;
+  while(true){while(i<ops.length&&ops[i].d.slice(0,7)<=k){v+=ops[i].a;i++}if(k>=now)break;
+    k=shift(k,1);const add=Math.max(0,v)*r;v+=add;earned+=add}
+  while(i<ops.length){v+=ops[i].a;i++}
+  return{v:Math.round(v),earned:Math.round(earned)}}
+function fundValue(f){return fundCalc(f).v}
+function fundProject(f,K){let v=fundValue(f);const r=fundRate(f),from=shift(nowYm(),1),s0=fundPlan(f)?.s||from;if(K<from)return v;
+  const ev=fundEvents(f,from>s0?from:s0,K);for(let k=from;k<=K;k=shift(k,1)){v+=Math.max(0,v)*r;v+=fundAt(f,k);v-=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0)}return Math.round(v)}
 
 
 document.getElementById("view").innerHTML=loadingHtml();

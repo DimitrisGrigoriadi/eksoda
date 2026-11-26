@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.6";
+const APP_VERSION="2026-11-26.7";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -469,7 +469,7 @@ async function applyChange(ch){
     for(const k2 of Object.keys(months).filter(x=>x>=k&&hasOwn(x))){const cats=planCats(k2);let inc=planInc(k2);if(ch.kind==="cat")mod(cats,inc);else inc=t.inc.map(i=>({...i}));out[k2]={plan:cats,incomes:inc}}}
   for(const[k2,v]of Object.entries(out)){const m=ensure(k2);m.plan=v.plan;m.incomes=v.incomes.map((i,x)=>({id:"tmp"+x,...i}))}
   rerenderKeepScroll();
-  try{if(scope==="all")await api("setYear",{year:"template",data:t});if(Object.keys(out).length){const d=await api("applyYear",{months:out});ingest(d,true)}}
+  try{if(scope==="all")await api("setYear",{year:"template",data:t});if(Object.keys(out).length){const d=await api("applyYear",{months:out});ingest(d,true)}rerenderKeepScroll();toast(scope==="all"?"Сохранено на сервере ✓ — и в следующих месяцах":"Сохранено на сервере ✓ — только в этом месяце")}
   catch(e){haptic("error");toast(e.message==="unknown_action"?"Не сохранилось: на сервере старый код. Обновите его в Apps Script.":"Не сохранилось, проверьте интернет. ("+(e.message||"ошибка")+")");await load(true)}
 }
 function groupByName(ops){const by={};for(const o of ops){(by[o.n]??={n:o.n,c:o.c,k:0,s:0});by[o.n].k++;by[o.n].s+=o.a}return by}
@@ -843,7 +843,7 @@ function editSheet(kind,key){
     sh.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.st)*stepV))});
     sh.querySelectorAll("[data-sc]").forEach(b=>b.onclick=()=>{pScope=b.dataset.sc;sh.querySelectorAll("[data-sc]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
     sh.querySelector("#eOk").onclick=()=>{const v=parseNum(iv.value);closeSheet();
-      if(kind==="cat")applyChange({kind:"cat",c:key,v});else applyChange({kind:"inc",i:key,n:(sh.querySelector("#eN").value.trim()||"Доход"),a:v});toast("Сохранено")};
+      if(kind==="cat")applyChange({kind:"cat",c:key,v});else applyChange({kind:"inc",i:key,n:(sh.querySelector("#eN").value.trim()||"Доход"),a:v});toast("Сохраняю…")};
     const d=sh.querySelector("#eDel");if(d)d.onclick=()=>{closeSheet();applyChange({kind:"incDel",i:key})}})}
 function planYear(){
   if(!oYear)oYear=Number(cur.slice(0,4));

@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.12";
+const APP_VERSION="2026-11-26.13";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -922,7 +922,7 @@ function viewFund(id){
   const hero=`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="fEdit">Изменить</button></div>
    <div class="hl" style="margin-top:12px">${debt?"Долг":"Копилка"} «${esc(f.n)}» · ${LAYERS[l].n.toLowerCase()}${p.own?" · личная, "+esc(p.own):""}</div>
    <div class="num" style="font-size:34px;margin:6px 0 10px">${debt?"осталось "+n0(left):money(val,f.cur).replace(" ₸","")}<i> ${f.cur==="USD"?"":"₸"}</i></div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${!debt?`<span class="pill glass">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</span>`:""}${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${!debt?`<span class="pill glass">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</span>`:""}${!debt?`<button class="pill glass" data-act="rate" style="color:#fff;font:inherit;font-size:12.5px">${fundRate(f)?String(f.rate).replace(".",",")+"% годовых":"ставка не задана"} ✎</button>`:""}${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
    <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">Весь год</button></div></div>`;
   let b="";
   if(fdMode==="m"){
@@ -1149,6 +1149,11 @@ document.addEventListener("click",async e=>{
     if(act==="fNew"){newFundSheet();return}
     if(act==="debtNew"){newFundSheet("debt");return}
     if(act==="contrib"){contribSheet(fundById(sub.slice(5)));return}
+    if(act==="rate"){const f=fundById(sub.slice(5));openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>ставка депозита</small></div>
+      <div class="field"><label for="rV">% годовых</label><input id="rV" inputmode="decimal" value="${esc(String(f.rate||"").replace(".",","))}" placeholder="14"></div>
+      <div class="note">Доход начисляется раз в месяц на остаток прошлого месяца. Пусто — без процентов.</div><button class="btn w" id="rOk">Сохранить</button>`,sh=>{const i=sh.querySelector("#rV");i.focus();
+      sh.querySelector("#rOk").onclick=async()=>{const r=i.value.trim().replace(",",".");if(r&&!(Number(r)>=0&&Number(r)<100)){toast("Введите число, например 14");return}
+        const f2={...f,rate:r};closeSheet();try{await api("setFund",f2);funds[funds.findIndex(z=>z.id===f.id)]=f2;haptic("success");toast("Сохранено на сервере ✓");rerenderKeepScroll()}catch(e){haptic("error");toast("Не сохранилось. ("+(e.message||"ошибка")+")")}}});return}
     if(act==="fEdit"){const f=fundById(sub.slice(5));fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:"save"}))};fEdit.plan.pay??=[];if(!["res","debt","save"].includes(fEdit.plan.g))fEdit.plan.g=fundLayer(f);sub="fedit";render();window.scrollTo(0,0);return}
     if(act==="fCancel"){goBack();return}
     if(act==="gNew"){giftSheet({id:"",n:"",o:"",d:null,m:Number(cur.slice(5)),a:0,r:"year",f:false,c:""});return}

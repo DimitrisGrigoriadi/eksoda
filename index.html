@@ -257,7 +257,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.7";
+const APP_VERSION="2026-11-26.8";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1158,6 +1158,29 @@ document.addEventListener("click",async e=>{
     let s=String(draft.a||"");s=key==="⌫"?s.slice(0,-1):(s.length<10?s+key:s);draft.a=Number(s)||"";
     const el=document.getElementById("amt");if(el)el.innerHTML=(draft.a?n0(draft.a):"0")+"<i> ₸</i>";return}
 });
+
+/* Сохранение плана по очереди: быстрые правки подряд не перетирают друг друга.
+   Экран меняется сразу; на сервер правки уходят строго одна за другой, каждая — с уже учтёнными предыдущими. */
+let saveQ=Promise.resolve(),pendingSaves=0;
+function applyChange(ch){
+  const k=cur,t=T(),scope=t?pScope:"only",out={};
+  const mod=(cats,inc)=>{if(ch.kind==="cat"){if(ch.v)cats[ch.c]=ch.v;else delete cats[ch.c]}
+    else if(ch.kind==="inc")inc[ch.i]={n:ch.n,a:ch.a};else if(ch.kind==="incAdd")inc.push({n:"Новый доход",a:0});else if(ch.kind==="incDel")inc.splice(ch.i,1)};
+  if(scope==="only"){const cats=planCats(k),inc=planInc(k);mod(cats,inc);out[k]={plan:cats,incomes:inc}}
+  else{if(ch.kind==="cat")mod(t.cats,[]);else{const inc=planInc(k);mod({},inc);t.inc=inc}if(k<t.from)t.from=k;
+    for(const k2 of Object.keys(months).filter(x=>x>=k&&hasOwn(x))){const cats=planCats(k2);let inc=planInc(k2);if(ch.kind==="cat")mod(cats,inc);else inc=t.inc.map(i=>({...i}));out[k2]={plan:cats,incomes:inc}}}
+  for(const[k2,v]of Object.entries(out)){const m=ensure(k2);m.plan=v.plan;m.incomes=v.incomes.map((i,x)=>({id:"tmp"+x,...i}))}
+  rerenderKeepScroll();
+  const tSnap=scope==="all"&&t?JSON.parse(JSON.stringify(t)):null,oSnap=JSON.parse(JSON.stringify(out));
+  pendingSaves++;
+  saveQ=saveQ.then(async()=>{
+    try{if(tSnap)await api("setYear",{year:"template",data:tSnap});
+      let d=null;if(Object.keys(oSnap).length)d=await api("applyYear",{months:oSnap});
+      pendingSaves--;
+      if(!pendingSaves){if(d)ingest(d,true);rerenderKeepScroll();toast(scope==="all"?"Сохранено на сервере ✓ — и в следующих месяцах":"Сохранено на сервере ✓ — только в этом месяце")}}
+    catch(e){pendingSaves--;haptic("error");toast(e.message==="unknown_action"?"Не сохранилось: на сервере старый код.":"Не сохранилось, проверьте интернет. ("+(e.message||"ошибка")+")");if(!pendingSaves)await load(true)}});
+  return saveQ;
+}
 
 
 document.getElementById("view").innerHTML=loadingHtml();

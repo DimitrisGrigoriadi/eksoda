@@ -250,6 +250,8 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 .grp-h h3{margin:0;font-size:16px}
 .pull .sub,.card .sub{text-transform:none;letter-spacing:0;font-size:13px;margin:0}
 
+.rows .r[data-fund] b::after{content:"";display:inline-block;width:6px;height:6px;border-right:1.8px solid var(--muted);border-top:1.8px solid var(--muted);transform:rotate(45deg);margin-left:9px;vertical-align:2px}
+
 </style>
 </head>
 <body>
@@ -257,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.9";
+const APP_VERSION="2026-11-26.10";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -376,7 +378,7 @@ const fmt=n=>Math.round(n).toLocaleString("ru-RU").replace(/,/g," ")+" ₸";
 const pct=n=>Math.round(n*100)+"%";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const parseNum=s=>Number(String(s).replace(/[^\d]/g,""))||0;
-function shift(key,d){let[y,m]=key.split("-").map(Number);m+=d;if(m>12){m=1;y++}if(m<1){m=12;y--}return y+"-"+String(m).padStart(2,"0")}
+function shift(key,d){const[y,m]=key.split("-").map(Number),t=y*12+(m-1)+d;return Math.floor(t/12)+"-"+String(t%12+1).padStart(2,"0")}
 function M(){return months[cur]}
 function ensure(k){return months[k]??={plan:{},incomes:[],ops:[]}}
 function haptic(t){try{tg&&tg.HapticFeedback.notificationOccurred(t)}catch(e){}}
@@ -552,7 +554,7 @@ function fundEvents(f,from,to){
 function fundSched(f){
   const p=fundPlan(f);if(!p||!p.s)return{S:0,C:0,end:""};
   if(p.mode==="fixed")return{S:p.x||0,C:0,end:""};
-  if(p.mode==="target")return{S:p.b&&p.b>=p.s?ceilK(Math.max(0,(p.t||0)-(p.h||0))/monthsBetween(p.s,p.b)):0,C:0,end:""};
+  if(p.mode==="target")return{S:p.x?p.x:p.b&&p.b>=p.s?ceilK(Math.max(0,(p.t||0)-(p.h||0))/monthsBetween(p.s,p.b)):0,C:0,end:""};
   const ev=fundEvents(f,p.s,shift(p.s,59)),h=p.h||0;
   if(p.mode==="schedule"&&!p.rep){let cum=0,x=0;for(const e of ev){cum+=e.a;x=Math.max(x,(cum-h)/monthsBetween(p.s,e.ym))}return{S:ceilK(Math.max(0,x)),C:0,end:""}}
   const S=ceilK(p.mode==="gifts"?(giftTotals().year+giftTotals().once)/12:(p.pay||[]).reduce((a,r)=>a+(r.a||0),0)/12);
@@ -918,7 +920,7 @@ function viewFund(id){
   const hero=`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="fEdit">Изменить</button></div>
    <div class="hl" style="margin-top:12px">${debt?"Долг":"Копилка"} «${esc(f.n)}» · ${LAYERS[l].n.toLowerCase()}${p.own?" · личная, "+esc(p.own):""}</div>
    <div class="num" style="font-size:34px;margin:6px 0 10px">${debt?"осталось "+n0(left):money(val,f.cur).replace(" ₸","")}<i> ${f.cur==="USD"?"":"₸"}</i></div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill glass">${debt?"":"+"}${n0(fundMonthly(f))} в месяц</span><span class="pill glass">${esc(fundSummary(f))}</span>${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
    <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">Весь год</button></div></div>`;
   let b="";
   if(fdMode==="m"){
@@ -938,6 +940,28 @@ function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
   return`<div class="hero" style="padding-bottom:34px"><div class="top"><button class="hbtn" data-act="fCancel">‹ Назад</button></div><div class="hl" style="margin-top:12px">${fEdit.id?"Изменить":"Новая копилка или долг"}</div><div class="num" style="font-size:28px">${esc(fEdit.n||"Без названия")}</div></div>
    <div class="body">${fundForm().replace('<div class="card"','<div class="card" style="display:flex;flex-direction:column;gap:12px"').replace(/class="btn ghost"/,'class="btn ghost" ')}</div>`}
 
+
+
+/* ---------- Взнос копилки: правка как у строк плана ---------- */
+function contribSheet(f){if(!f)return;
+  const p=JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f)})),debt=fundLayer(f)==="debt",cur0=fundMonthly(f),val=fundValue(f);
+  if(p.mode==="gifts"||p.mode==="schedule"){openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${n0(cur0)} в месяц</small></div><div class="note">Взнос считается сам — из ${p.mode==="gifts"?"списка подарков":"списка поездок и платежей"}, чтобы к каждой дате хватало. Поменяй список — взнос пересчитается.</div><button class="btn w" id="cOpen">Открыть копилку</button>`,s=>{s.querySelector("#cOpen").onclick=()=>{closeSheet();sub="fund:"+f.id;fdMode="y";render();window.scrollTo(0,0)}});return}
+  const s0=nowYm(),left=Math.max(0,(p.t||0)-val);
+  const calc=x=>{if(p.mode!=="target"||!p.t)return"";if(!x)return"При нуле цель не будет достигнута";const n=Math.ceil(left/x);const e=shift(s0,Math.max(0,n-1));return left?`${debt?"Закроешь":"Наберёшь"} ${n0(p.t)} — срок: ${MONTH_NAMES[Number(e.slice(5))-1].toLowerCase()} ${e.slice(0,4)}`:"Цель уже набрана"};
+  openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${debt?"платёж":"взнос"} в месяц</small></div>
+   <div class="step"><button data-cs="-1" aria-label="Меньше">−</button><input id="cV" inputmode="numeric" value="${n0(cur0)}" aria-label="Сумма в месяц"><button data-cs="1" aria-label="Больше">+</button></div>
+   <div class="note" id="cN">${p.mode==="target"&&p.t?(debt?"Осталось отдать ":"Осталось набрать ")+n0(left)+" · "+calc(cur0):"Будет откладываться каждый месяц"}</div>
+   <button class="btn w" id="cOk">Сохранить</button><button class="del" style="color:var(--muted)" id="cMore">Цель, срок и другие настройки</button>`,sh=>{
+    const iv=sh.querySelector("#cV"),upd=()=>{const x=parseNum(iv.value);if(p.mode==="target"&&p.t)sh.querySelector("#cN").textContent=(debt?"Осталось отдать ":"Осталось набрать ")+n0(left)+" · "+calc(x)};
+    iv.oninput=()=>{const v=parseNum(iv.value);iv.value=v?n0(v):"";upd()};
+    const st=cur0>=200000?10000:5000;sh.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.cs)*st));upd()});
+    sh.querySelector("#cMore").onclick=()=>{closeSheet();sub="fund:"+f.id;fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:fundLayer(f)}))};fEdit.plan.pay??=[];sub="fedit";render();window.scrollTo(0,0)};
+    sh.querySelector("#cOk").onclick=async()=>{const x=parseNum(iv.value);
+      if(p.mode==="target"&&p.t){if(!x){toast("Взнос не может быть нулём при цели");return}p.s=s0;p.h=val;p.x=x;p.b=left?shift(s0,Math.max(0,Math.ceil(left/x)-1)):s0}
+      else{p.mode="fixed";p.x=x;p.s=p.s&&p.s>=s0?p.s:s0}
+      const f2={...f,plan:p};closeSheet();
+      try{await api("setFund",f2);const i=funds.findIndex(z=>z.id===f.id);funds[i]=f2;haptic("success");toast(`Сохранено на сервере ✓ · ${n0(fundMonthly(f2))} в месяц`);rerenderKeepScroll()}
+      catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет. ("+(e.message||"ошибка")+")")}}})}
 
 /* ---------- Поездки (копилка с графиком) ---------- */
 function viewTrips(f){
@@ -1097,7 +1121,7 @@ function bindFundEdit(){
     if(p.mode==="target"&&p.b<p.s){toast("Срок раньше начала");return}
     if(!p.s){toast("Укажите, с какого месяца");return}
     if(f._bal!==(fEdit.bal??null)){f.bal=f._bal;f.bd=f._bal==null?"":todayStr()}delete f._bal;
-    p.pay=(p.pay||[]).filter(r=>r.ym&&r.a);p.h=fundValue(f);
+    p.pay=(p.pay||[]).filter(r=>r.ym&&r.a);p.h=fundValue(f);if(p.mode==="target")delete p.x;
     const btn=$("f_save");btn.disabled=true;btn.textContent="Сохраняю…";
     try{const r=await api("setFund",f);f.id=r.id;const i=funds.findIndex(x=>x.id===f.id);if(i>=0)funds[i]=f;else funds.push(f);
       fEdit=null;sub="fund:"+f.id;haptic("success");toast(`Сохранено · ${n0(fundMonthly(f))} в месяц`);render()}
@@ -1121,6 +1145,7 @@ document.addEventListener("click",async e=>{
     if(act==="yPrev"||act==="yNext"){oYear+=act==="yPrev"?-1:1;oSel=-1;render();return}
     if(act==="fNew"){newFundSheet();return}
     if(act==="debtNew"){newFundSheet("debt");return}
+    if(act==="contrib"){contribSheet(fundById(sub.slice(5)));return}
     if(act==="fEdit"){const f=fundById(sub.slice(5));fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:"save"}))};fEdit.plan.pay??=[];if(!["res","debt","save"].includes(fEdit.plan.g))fEdit.plan.g=fundLayer(f);sub="fedit";render();window.scrollTo(0,0);return}
     if(act==="fCancel"){goBack();return}
     if(act==="gNew"){giftSheet({id:"",n:"",o:"",d:null,m:Number(cur.slice(5)),a:0,r:"year",f:false,c:""});return}
@@ -1141,6 +1166,7 @@ document.addEventListener("click",async e=>{
   const om=t.closest("[data-om]");if(om){const i=Number(om.dataset.om);oSel=oSel===i?-1:i;rerenderKeepScroll();return}
   const pr=t.closest("[data-pr]");if(pr){editSheet("cat",pr.dataset.pr);return}
   const inc=t.closest("[data-inc]");if(inc){editSheet("inc",Number(inc.dataset.inc));return}
+  const fr=t.closest(".rows [data-fund]");if(fr){contribSheet(fundById(fr.dataset.fund));return}
   const fd=t.closest("[data-fund]");if(fd){sub="fund:"+fd.dataset.fund;fdMode="m";gMode="m";render();window.scrollTo(0,0);return}
   const fdm=t.closest("[data-fd]");if(fdm){fdMode=fdm.dataset.fd;rerenderKeepScroll();return}
   const gm=t.closest("[data-gm]");if(gm){gMode=gm.dataset.gm;rerenderKeepScroll();return}

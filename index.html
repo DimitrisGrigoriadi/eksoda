@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-26.16";
+const APP_VERSION="2026-11-28.1";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -826,9 +826,9 @@ function viewPlanN(){
     const ks=fk.filter(x=>layerOf(x)===l),cats=l==="save"?saveCats:[];
     const idle=(funds||[]).filter(f=>fundLayer(f)===l&&!P["fund:"+f.id]&&!(f.c&&cats.includes(f.c)));
     if(!ks.length&&!cats.length&&!idle.length)continue;
-    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${n0(s.plan[l])}</span></div><div class="rows">${cats.map(c=>planRow(k,c,s,true,"в копилку · сумма задаётся здесь")).join("")}${ks.filter(x=>!cats.includes(fundById(x.slice(5))?.c)).map(x=>{const f=fundById(x.slice(5));return planRow(k,x,s,false,fundSummary(f)+(fundPlan(f)?.own?" · личная, "+fundPlan(f).own:""))}).join("")}${idle.map(f=>`<button class="r" data-fund="${esc(f.id)}"><span>${esc(f.n)}</span><b class="muted">0</b><small>${fundPlan(f)?.s>k?"взносы с "+ymText(fundPlan(f).s):fundPlan(f)?"в этом месяце взноса нет":"цель не задана — нажми, чтобы задать"}</small></button>`).join("")}</div>`}
+    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${n0(s.plan[l])}</span></div><div class="rows">${cats.map(c=>planRow(k,c,s,true,"в копилку · сумма задаётся здесь")).join("")}${ks.filter(x=>!cats.includes(fundById(x.slice(5))?.c)).map(x=>{const f=fundById(x.slice(5));return planRow(k,x,s,false,planFundNote(f))}).join("")}${idle.map(f=>`<button class="r" data-fund="${esc(f.id)}"><span>${esc(f.n)}</span><b class="muted">0</b><small>в копилку · сумма задаётся здесь${fundPlan(f)?.s>k?" · взносы с "+ymText(fundPlan(f).s):""}</small></button>`).join("")}</div>`}
   h+=`<button class="addc" data-act="settings">+ Своя категория или убрать лишнюю</button>
-   <div class="note" style="padding:0 4px">Взносы в копилки и платежи по долгам считаются из целей и сроков — меняются в самой копилке.</div>`;
+   <div class="note" style="padding:0 4px">Взнос в любую копилку и платёж по долгу меняется нажатием на строку — на этот месяц или дальше.</div>`;
   return hero+`<div class="body">${h}</div>`;
 }
 function editSheet(kind,key){
@@ -946,6 +946,8 @@ function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
 
 
 
+function planFundNote(f){const p=fundPlan(f)||{};let n=p.mode==="gifts"?"в копилку · по списку подарков":p.mode==="schedule"?"в копилку · по списку поездок":"в копилку · сумма задаётся здесь";
+  if(p.mode==="target"&&p.t)n+=" · цель "+n0(p.t);if(p.own)n+=" · личная, "+p.own;if(fundRate(f))n+=" · "+String(f.rate).replace(".",",")+"%";return n}
 /* ---------- Взнос копилки: правка как у строк плана ---------- */
 /* plan.ov = {"2026-12": сумма} — только этот месяц; plan.st = [{ym, x}] — с этого месяца и дальше */
 const _fundAtBase=fundAt;

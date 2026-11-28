@@ -260,6 +260,7 @@ input[type=month],input[type=date]{min-width:0;max-width:100%;-webkit-appearance
 html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
 button,a,[data-act],[data-k]{touch-action:manipulation}
 input,select,textarea{font-size:16px}
+.ringwrap span svg.ico{width:22px;height:22px;transform:none;color:var(--muted)}
 
 </style>
 </head>
@@ -268,7 +269,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.17";
+const APP_VERSION="2026-11-28.18";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -883,8 +884,8 @@ function plan5(){if(!funds)return`<div class="empty">Копилки не заг�
 /* ---------- Копилки ---------- */
 function fundPct(f){const p=fundPlan(f);const t=p?.t||0;return t?fundValue(f)/t:null}
 function fundCard(f){const l=fundLayer(f),p=fundPct(f),own=fundPlan(f)?.own,neg=l==="res"?fundForecast(f,shift(nowYm(),12)).map(x=>({k:x.k,b:x.v})).find(x=>x.b<-1000):null;
-  return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(p??0.999,`var(--${l})`)}<span>${p!=null?Math.round(p*100)+"%":"∞"}</span></span>
-   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em>${(()=>{const fx=fundPlan(f)?.mode==="fixed"&&l!=="debt",bits=[];if(!fx)bits.push(esc(fundSummary(f)));if(fundRate(f))bits.push(String(f.rate).replace(".",",")+"% годовых");return bits.length?`<small>${bits.join(" · ")}</small>`:""})()}${l!=="debt"?(()=>{const rw=fundForecast(f,planStartYear()+"-12"),pr=rw.reduce((a,x)=>a+x.pr,0),inn=rw.reduce((a,x)=>a+x.inn,0);return`<small style="color:var(--fg)">к концу ${planStartYear()} ≈ ${n0(rw.length?rw[rw.length-1].v:fundValue(f))}</small><small>внесём ${n0(inn)}${pr?` · проценты ${n0(pr)}`:""}</small>`})():""}${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
+  return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(p??0,`var(--${l})`)}<span>${p!=null?Math.round(p*100)+"%":I(l==="res"?(fundPlan(f)?.mode==="gifts"?"gift":"plane"):"jar")}</span></span>
+   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em>${l==="debt"?`<small>${esc(fundSummary(f))}</small>`:(()=>{const rw=fundForecast(f,planStartYear()+"-12"),end=rw.length?rw[rw.length-1].v:fundValue(f);return`<small>${fundRate(f)?String(f.rate).replace(".",",")+"% · ":""}к концу ${planStartYear()} ≈ ${n0(end)}</small>`})()}${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
 function viewFundsN(){
   if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки не загрузились с сервера.<button class="btn" data-act="reload">Загрузить заново</button></div></div>`;
   const list=funds.filter(f=>fundLayer(f)!=="debt"),total=list.reduce((a,f)=>a+fundKzt(f),0);

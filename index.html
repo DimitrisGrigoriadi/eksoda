@@ -268,7 +268,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.12";
+const APP_VERSION="2026-11-28.13";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1308,19 +1308,6 @@ function fundProject(f,K){let v=fundValue(f);const r=fundRate(f),from=shift(nowY
 const _fatal=fatal;
 fatal=function(e){if(Object.keys(months).length||funds){document.querySelector("nav.tabs").hidden=tab==="add";toast("Не удалось обновить данные с сервера, показываю последние ("+(e.data?.error||e.message||"ошибка")+")");render();return}_fatal(e)};
 
-/* Взнос с учётом процентов: если у копилки есть ставка, взнос уменьшается ровно настолько,
-   чтобы с процентами хватило к каждой трате (поездки, подарки) или к цели к сроку.
-   После траты деньги уходят из копилки — проценты дальше начисляются только на остаток. */
-const _fundSchedBase=fundSched,_schedCache=new Map();
-fundSched=function(f){const sc=_fundSchedBase(f),r=fundRate(f),p=fundPlan(f);
-  if(!r||!p||!p.s||p.mode==="fixed"||(!sc.S&&!sc.C))return sc;
-  const n=p.mode==="target"?monthsBetween(p.s,p.b||p.s):60,ev=p.mode==="target"?[]:fundEvents(f,p.s,shift(p.s,n-1));
-  const key=f.id+"|"+r+"|"+JSON.stringify(p)+"|"+JSON.stringify(ev)+"|"+sc.S+"|"+sc.C;if(_schedCache.has(key))return _schedCache.get(key);
-  const ok=l=>{let b=p.h||0;for(let i=0,k=p.s;i<n;i++,k=shift(k,1)){b+=Math.max(0,b)*r;b+=(sc.S+(sc.C&&k<=sc.end?sc.C:0))*l;b-=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0);if(p.mode!=="target"&&b<-1)return false}
-    return p.mode==="target"?b>=(p.t||0)-1:true};
-  let lo=0,hi=1;for(let i=0;i<22;i++){const m=(lo+hi)/2;if(ok(m))hi=m;else lo=m}
-  const res={S:sc.S?ceilK(sc.S*hi):0,C:sc.C?ceilK(sc.C*hi):0,end:sc.end};
-  if(_schedCache.size>200)_schedCache.clear();_schedCache.set(key,res);return res};
 
 /* Подушка и S&P раньше пополнялись строками плана, а машина и квартира — своим взносом в копилке.
    Один раз переводим строки плана в взнос самой копилки, чтобы все накопления работали одинаково. */

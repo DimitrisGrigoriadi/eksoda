@@ -268,7 +268,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.13";
+const APP_VERSION="2026-11-28.14";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1338,6 +1338,10 @@ load=async function(silent){await _load2(silent);try{await unifySavings()}catch(
 /* Помесячный остаток копилки с процентами — им пользуются проверка «не хватит», поездки и график долга */
 fundSim=function(f,n){const p=fundPlan(f);if(!p||!p.s)return[];const r=fundRate(f);let b=p.h||0;const ev=fundEvents(f,p.s,shift(p.s,n-1)),out=[];
   for(let i=0;i<n;i++){const k=shift(p.s,i);b+=Math.max(0,b)*r;const inn=fundAt(f,k),o=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0);b+=inn-o;out.push({k,inn,o,b})}return out};
+
+/* Подпись копилки: без «фиксированного взноса» — сумма просто берётся из «Плана» по месяцам */
+const _fundSummaryBase=fundSummary;
+fundSummary=function(f){const p=fundPlan(f);if(p&&p.mode==="fixed")return fundLayer(f)==="debt"?"платёж задаётся в «Плане»":"взнос задаётся в «Плане» по месяцам";return _fundSummaryBase(f)};
 
 
 document.getElementById("view").innerHTML=loadingHtml();

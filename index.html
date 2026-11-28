@@ -259,7 +259,7 @@ nav.tabs button.add svg{width:26px;height:26px;padding:4px;border-radius:50%;bac
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.1";
+const APP_VERSION="2026-11-28.2";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -922,8 +922,8 @@ function viewFund(id){
   const hero=`<div class="hero"><div class="top">${back("funds","Копилки")}<button class="hbtn" data-act="fEdit">Изменить</button></div>
    <div class="hl" style="margin-top:12px">${debt?"Долг":"Копилка"} «${esc(f.n)}» · ${LAYERS[l].n.toLowerCase()}${p.own?" · личная, "+esc(p.own):""}</div>
    <div class="num" style="font-size:34px;margin:6px 0 10px">${debt?"осталось "+n0(left):money(val,f.cur).replace(" ₸","")}<i> ${f.cur==="USD"?"":"₸"}</i></div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">${debt?"":"+"}${n0(fundMonthly(f))} в месяц ✎</button><span class="pill glass">${esc(fundSummary(f))}</span>${!debt?`<span class="pill glass">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</span>`:""}${!debt?`<button class="pill glass" data-act="rate" style="color:#fff;font:inherit;font-size:12.5px">${fundRate(f)?String(f.rate).replace(".",",")+"% годовых":"ставка не задана"} ✎</button>`:""}${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
-   <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">План на год</button></div></div>`;
+   <div style="display:flex;gap:6px;flex-wrap:wrap">${debt?"":`<button class="pill glass" data-act="contrib" style="color:#fff;font:inherit;font-size:12.5px">+${n0(fundMonthly(f))} в месяц ✎</button>`}<span class="pill glass">${esc(fundSummary(f))}</span>${!debt?`<span class="pill glass">к концу ${planStartYear()} ≈ ${n0(fundProject(f,planStartYear()+"-12"))}</span>`:""}${!debt?`<button class="pill glass" data-act="rate" style="color:#fff;font:inherit;font-size:12.5px">${fundRate(f)?String(f.rate).replace(".",",")+"% годовых":"ставка не задана"} ✎</button>`:""}${f.p?`<span class="pill glass">${esc(f.p)}</span>`:""}</div>
+   <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">${debt?"Весь график":"План на год"}</button></div></div>`;
   let b="";
   if(fdMode==="m"){
     b=`<div class="card"><h4>${MONTH_NAMES[mi]}<span>по плану</span></h4>
@@ -935,9 +935,9 @@ function viewFund(id){
      ${planIn>factIn?`<button class="btn acc w" style="margin-top:10px" data-act="putin" data-k="${k}">${debt?"Записать платёж":"Записать взнос"} · ${n0(planIn-factIn)}</button>`:""}</div>
      ${fundNote(f)?`<div class="card note">${fundNote(f)}</div>`:""}`;
   }else{
-    const sim=fundSim(f,72).filter(x=>x.k>=cur).slice(0,12);
+    const sim=debt?fundSim(f,36).filter((x,i,arr)=>x.inn||i===0||(arr[i-1]&&arr[i-1].inn)).slice(0,24):fundSim(f,72).filter(x=>x.k>=cur).slice(0,12);
     if(!debt){b=projCard(f);return hero+`<div class="body">${b}</div>`}
-    b=`<div class="card"><h4>Следующие 12 месяцев<span>${debt?"платёж · осталось":"взнос · остаток"}</span></h4>${sim.length?sim.map(x=>`<div class="ym"><span>${MONTH_NAMES[Number(x.k.slice(5))-1]} ${x.k.slice(0,4)}${x.o?`<small>трата ${n0(x.o)}</small>`:""}</span><b>${x.inn?(debt?"−":"+")+n0(x.inn):"—"} · ${debt?n0(Math.max(0,(p.t||0)-x.b)):n0(x.b)}</b></div>`).join(""):`<div class="note">План копилки не задан.</div>`}</div>`}
+    b=`<div class="card"><h4>${debt?"Весь график долга":"Следующие 12 месяцев"}<span>${debt?"платёж · осталось":"взнос · остаток"}</span></h4>${sim.length?sim.map(x=>`<div class="ym"><span>${MONTH_NAMES[Number(x.k.slice(5))-1]} ${x.k.slice(0,4)}${x.o?`<small>трата ${n0(x.o)}</small>`:""}</span><b>${x.inn?(debt?"−":"+")+n0(x.inn):"—"} · ${debt?n0(Math.max(0,(p.t||0)-x.b)):n0(x.b)}</b></div>`).join(""):`<div class="note">План копилки не задан.</div>`}</div>`}
   return hero+`<div class="body">${b}</div>`;
 }
 function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
@@ -948,6 +948,18 @@ function viewFundEdit(){if(!fEdit){sub=null;return viewFundsN()}
 
 function planFundNote(f){const p=fundPlan(f)||{};let n=p.mode==="gifts"?"в копилку · по списку подарков":p.mode==="schedule"?"в копилку · по списку поездок":"в копилку · сумма задаётся здесь";
   if(p.mode==="target"&&p.t)n+=" · цель "+n0(p.t);if(p.own)n+=" · личная, "+p.own;if(fundRate(f))n+=" · "+String(f.rate).replace(".",",")+"%";return n}
+
+/* Сохранение копилки «поверх свежих данных»: сначала берём с сервера актуальную версию
+   (её мог поменять другой телефон), применяем к ней только своё изменение и сохраняем. */
+function saveFundFresh(id,mutate,msg){
+  pendingSaves++;
+  saveQ=saveQ.then(async()=>{try{const d=await api("getAll");ingest(d,true);const f=fundById(id);if(!f)throw new Error("копилка не найдена");
+      const f2=JSON.parse(JSON.stringify(f));f2.plan=f2.plan||JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f)}));mutate(f2);
+      await api("setFund",f2);funds[funds.findIndex(z=>z.id===id)]=f2;pendingSaves--;haptic("success");toast(msg);if(!pendingSaves)rerenderKeepScroll()}
+    catch(e){pendingSaves--;haptic("error");toast("Не сохранилось. Проверьте интернет. ("+(e.message||"ошибка")+")");if(!pendingSaves)await load(true)}});
+  // показать сразу
+  const f=fundById(id);if(f){const f2=JSON.parse(JSON.stringify(f));f2.plan=f2.plan||JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f)}));mutate(f2);funds[funds.findIndex(z=>z.id===id)]=f2;rerenderKeepScroll()}
+  return saveQ}
 /* ---------- Взнос копилки: правка как у строк плана ---------- */
 /* plan.ov = {"2026-12": сумма} — только этот месяц; plan.st = [{ym, x}] — с этого месяца и дальше */
 const _fundAtBase=fundAt;
@@ -969,16 +981,12 @@ function contribSheet(f,k){if(!f)return;k=k||cur;
     iv.oninput=()=>{const v=parseNum(iv.value);iv.value=v?n0(v):""};
     const stp=now>=200000?10000:5000;sh.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.cs)*stp))});
     sh.querySelectorAll("[data-csc]").forEach(b=>b.onclick=()=>{sc=b.dataset.csc;pScope=sc;sh.querySelectorAll("[data-csc]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
-    const put=async(p2,msg)=>{const f2={...f,plan:p2};closeSheet();
-      try{await api("setFund",f2);funds[funds.findIndex(z=>z.id===f.id)]=f2;haptic("success");toast(msg);rerenderKeepScroll()}
-      catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет. ("+(e.message||"ошибка")+")")}};
+    const put=(mut,msg)=>{closeSheet();saveFundFresh(f.id,g=>{g.plan.s=g.plan.s||k;mut(g.plan)},msg)};
     sh.querySelector("#cMore").onclick=()=>{closeSheet();fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:fundLayer(f)}))};fEdit.plan.pay??=[];sub="fedit";render();window.scrollTo(0,0)};
-    const rs=sh.querySelector("#cReset");if(rs)rs.onclick=()=>{delete p.ov;delete p.st;put(p,"Сохранено на сервере ✓ · взнос снова по цели")};
+    const rs=sh.querySelector("#cReset");if(rs)rs.onclick=()=>put(q=>{delete q.ov;delete q.st},"Сохранено на сервере ✓ · взнос снова по цели");
     sh.querySelector("#cOk").onclick=()=>{const x=parseNum(iv.value);
-      if(!p.s)p.s=k;
-      if(sc==="only"){p.ov={...(p.ov||{}),[k]:x};put(p,`Сохранено на сервере ✓ — только ${MONTH_NAMES[mi].toLowerCase()}`)}
-      else{p.st=(p.st||[]).filter(z=>z.ym<k).concat([{ym:k,x}]);if(p.ov)for(const m of Object.keys(p.ov))if(m>=k)delete p.ov[m];if(p.s>k)p.s=k;
-        put(p,`Сохранено на сервере ✓ — с ${MONTH_GEN[mi]} и дальше`)}}})}
+      if(sc==="only")put(q=>{q.ov={...(q.ov||{}),[k]:x}},`Сохранено на сервере ✓ — только ${MONTH_NAMES[mi].toLowerCase()}`);
+      else put(q=>{q.st=(q.st||[]).filter(z=>z.ym<k).concat([{ym:k,x}]);if(q.ov)for(const m of Object.keys(q.ov))if(m>=k)delete q.ov[m];if(q.s>k)q.s=k},`Сохранено на сервере ✓ — с ${MONTH_GEN[mi]} и дальше`)}})}
 
 
 /* ---------- Прогноз копилки: взносы, проценты, траты, остаток по месяцам ---------- */
@@ -1018,12 +1026,9 @@ function viewTrips(f){
    <div class="hseg"><button data-fd="m" aria-pressed="${fdMode==="m"}">${MONTH_NAMES[mi]}</button><button data-fd="y" aria-pressed="${fdMode==="y"}">${trip?"Все поездки":"Все платежи"}</button></div></div>
    <div class="body">${b}<button class="addc" data-act="fEdit">Другие настройки копилки</button></div>`;
 }
-async function saveTripPlan(f,mut){
-  const p=JSON.parse(JSON.stringify(fundPlan(f)||{g:"res"}));
+function saveTripPlan(f,mut){return saveFundFresh(f.id,g=>{const p=g.plan;
   if(p.mode!=="schedule"){p.mode="schedule";p.pay=[];p.s=p.s&&p.s>=nowYm()?p.s:shift(nowYm(),1);p.rep=false}
-  p.pay??=[];mut(p);p.pay=p.pay.filter(r=>r.ym&&r.a);p.h=fundValue(f);
-  const f2={...f,plan:p};try{await api("setFund",f2);const i=funds.findIndex(x=>x.id===f.id);funds[i]=f2;haptic("success");toast(`Сохранено · ${n0(fundMonthly(f2))} в месяц`);rerenderKeepScroll()}
-  catch(e){haptic("error");toast("Не сохранилось. Проверьте интернет.")}}
+  p.pay??=[];mut(p);p.pay=p.pay.filter(r=>r.ym&&r.a);p.h=fundValue(g)},"Сохранено на сервере ✓")}
 function tripSheet(f,i){
   const p=fundPlan(f)||{},r=i!=null?p.pay[i]:{ym:shift(nowYm(),3),a:0,n:""},W=f.c==="trip"?"Поездка":"Платёж";
   openSheet(`<div class="ttl"><b>${i!=null?esc(r.n||W):"Новая "+W.toLowerCase()}</b></div>
@@ -1182,7 +1187,7 @@ document.addEventListener("click",async e=>{
       <div class="field"><label for="rV">% годовых</label><input id="rV" inputmode="decimal" value="${esc(String(f.rate||"").replace(".",","))}" placeholder="14"></div>
       <div class="note">Доход начисляется раз в месяц на остаток прошлого месяца. Пусто — без процентов.</div><button class="btn w" id="rOk">Сохранить</button>`,sh=>{const i=sh.querySelector("#rV");i.focus();
       sh.querySelector("#rOk").onclick=async()=>{const r=i.value.trim().replace(",",".");if(r&&!(Number(r)>=0&&Number(r)<100)){toast("Введите число, например 14");return}
-        const f2={...f,rate:r};closeSheet();try{await api("setFund",f2);funds[funds.findIndex(z=>z.id===f.id)]=f2;haptic("success");toast("Сохранено на сервере ✓");rerenderKeepScroll()}catch(e){haptic("error");toast("Не сохранилось. ("+(e.message||"ошибка")+")")}}});return}
+        closeSheet();saveFundFresh(f.id,g=>{g.rate=r},"Сохранено на сервере ✓")}});return}
     if(act==="fEdit"){const f=fundById(sub.slice(5));fEdit={...f,plan:JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",s:shift(nowYm(),1),x:0,h:0,g:"save"}))};fEdit.plan.pay??=[];if(!["res","debt","save"].includes(fEdit.plan.g))fEdit.plan.g=fundLayer(f);sub="fedit";render();window.scrollTo(0,0);return}
     if(act==="fCancel"){goBack();return}
     if(act==="gNew"){giftSheet({id:"",n:"",o:"",d:null,m:Number(cur.slice(5)),a:0,r:"year",f:false,c:""});return}
@@ -1227,25 +1232,32 @@ document.addEventListener("click",async e=>{
 /* Сохранение плана по очереди: быстрые правки подряд не перетирают друг друга.
    Экран меняется сразу; на сервер правки уходят строго одна за другой, каждая — с уже учтёнными предыдущими. */
 let saveQ=Promise.resolve(),pendingSaves=0;
-function applyChange(ch){
-  const k=cur,t=T(),scope=t?pScope:"only",out={};
+function buildChange(ch,k,scope){const t=T(),out={};
   const mod=(cats,inc)=>{if(ch.kind==="cat"){if(ch.v)cats[ch.c]=ch.v;else delete cats[ch.c]}
     else if(ch.kind==="inc")inc[ch.i]={n:ch.n,a:ch.a};else if(ch.kind==="incAdd")inc.push({n:"Новый доход",a:0});else if(ch.kind==="incDel")inc.splice(ch.i,1)};
-  if(scope==="only"){const cats=planCats(k),inc=planInc(k);mod(cats,inc);out[k]={plan:cats,incomes:inc}}
+  if(scope==="only"||!t){const cats=planCats(k),inc=planInc(k);mod(cats,inc);out[k]={plan:cats,incomes:inc}}
   else{if(ch.kind==="cat")mod(t.cats,[]);else{const inc=planInc(k);mod({},inc);t.inc=inc}if(k<t.from)t.from=k;
     for(const k2 of Object.keys(months).filter(x=>x>=k&&hasOwn(x))){const cats=planCats(k2);let inc=planInc(k2);if(ch.kind==="cat")mod(cats,inc);else inc=t.inc.map(i=>({...i}));out[k2]={plan:cats,incomes:inc}}}
   for(const[k2,v]of Object.entries(out)){const m=ensure(k2);m.plan=v.plan;m.incomes=v.incomes.map((i,x)=>({id:"tmp"+x,...i}))}
-  rerenderKeepScroll();
-  const tSnap=scope==="all"&&t?JSON.parse(JSON.stringify(t)):null,oSnap=JSON.parse(JSON.stringify(out));
+  return{tSnap:scope==="all"&&t?JSON.parse(JSON.stringify(t)):null,oSnap:JSON.parse(JSON.stringify(out))}}
+function applyChange(ch){
+  const k=cur,scope=T()?pScope:"only";
+  buildChange(ch,k,scope);rerenderKeepScroll();
   pendingSaves++;
   saveQ=saveQ.then(async()=>{
-    try{if(tSnap)await api("setYear",{year:"template",data:tSnap});
+    try{const d0=await api("getAll");ingest(d0,true);   // свежие данные: правки с другого телефона не затрутся
+      const{tSnap,oSnap}=buildChange(ch,k,scope);
+      if(tSnap)await api("setYear",{year:"template",data:tSnap});
       let d=null;if(Object.keys(oSnap).length)d=await api("applyYear",{months:oSnap});
       pendingSaves--;
       if(!pendingSaves){if(d)ingest(d,true);rerenderKeepScroll();toast(scope==="all"?"Сохранено на сервере ✓ — и в следующих месяцах":"Сохранено на сервере ✓ — только в этом месяце")}}
     catch(e){pendingSaves--;haptic("error");toast(e.message==="unknown_action"?"Не сохранилось: на сервере старый код.":"Не сохранилось, проверьте интернет. ("+(e.message||"ошибка")+")");if(!pendingSaves)await load(true)}});
   return saveQ;
 }
+/* Вернулись в приложение — подтянуть свежие данные, чтобы не править старую версию */
+let lastLoad=Date.now();
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-lastLoad>20000&&!pendingSaves&&!document.getElementById("scrim")){lastLoad=Date.now();load(true)}});
+setInterval(()=>{if(!document.hidden&&Date.now()-lastLoad>180000&&!pendingSaves&&!document.getElementById("scrim")&&!document.querySelector("input:focus")){lastLoad=Date.now();load(true)}},30000);
 
 /* Депозитный процент: в начале каждого следующего месяца к остатку прибавляется доход
    (ставка / 12 от остатка на конец прошлого месяца). Для долгов не считается. */

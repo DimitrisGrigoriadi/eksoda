@@ -269,7 +269,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.18";
+const APP_VERSION="2026-11-28.19";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1346,6 +1346,29 @@ fundSim=function(f,n){const p=fundPlan(f);if(!p||!p.s)return[];const r=fundRate(
 /* Подпись копилки: без «фиксированного взноса» — сумма просто берётся из «Плана» по месяцам */
 const _fundSummaryBase=fundSummary;
 fundSummary=function(f){const p=fundPlan(f);if(p&&p.mode==="fixed")return fundLayer(f)==="debt"?"платёж задаётся в «Плане»":"взнос задаётся в «Плане» по месяцам";return _fundSummaryBase(f)};
+
+/* ---------- Копилки по месяцам: листаешь месяц — видишь остаток на конец месяца с учётом плана и процентов ---------- */
+function fundMonth(f,k){const now=nowYm();
+  if(k<now)return{bal:null,inn:0,pr:0,out:0,past:true};
+  if(k===now){const s=sums(k),key="fund:"+f.id;return{bal:fundValue(f),inn:s.byCat[key]||0,pr:0,out:0,now:true}}
+  const rows=fundForecast(f,k),x=rows[rows.length-1]||{v:fundValue(f),inn:0,pr:0,out:0};return{bal:x.v,inn:x.inn,pr:x.pr,out:x.out}}
+fundCard=function(f){const l=fundLayer(f),p=fundPlan(f)||{},m=fundMonth(f,cur),debt=l==="debt",own=p.own,mi=Number(cur.slice(5))-1;
+  const bal=m.bal==null?fundValue(f):m.bal,left=Math.max(0,(p.t||0)-bal),pc=p.t?Math.min(1,bal/p.t):null;
+  const line=debt?`платёж ${n0(fundIn(f,cur))} · осталось ${n0(left)}`:m.now?`сейчас лежит${fundRate(f)?" · "+String(f.rate).replace(".",",")+"%":""}`:m.past?"прошлый месяц — показан текущий остаток":`+${n0(m.inn)} взнос${m.pr?` · +${n0(m.pr)} проценты`:""}${m.out?` · −${n0(m.out)} траты`:""}`;
+  return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(pc??0,`var(--${l})`)}<span>${pc!=null?Math.round(pc*100)+"%":I(l==="res"?(p.mode==="gifts"?"gift":"plane"):"jar")}</span></span>
+   <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${debt?"осталось "+n0(left):n0(bal)+" ₸"}</em><small>${line}</small></span></button>`};
+viewFundsN=function(){
+  if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки не загрузились с сервера.<button class="btn" data-act="reload">Загрузить заново</button></div></div>`;
+  const list=funds.filter(f=>fundLayer(f)!=="debt"),mi=Number(cur.slice(5))-1,now=nowYm();
+  const total=list.reduce((a,f)=>{const m=fundMonth(f,cur);return a+(m.bal==null?fundValue(f):m.bal)},0);
+  let h="";for(const l of["res","debt","save"]){const fs=funds.filter(f=>fundLayer(f)===l);if(!fs.length&&l!=="debt")continue;
+    const sum=fs.reduce((a,f)=>{const m=fundMonth(f,cur),b=m.bal==null?fundValue(f):m.bal;return a+(l==="debt"?Math.max(0,(fundPlan(f)?.t||0)-b):b)},0);
+    h+=`<div class="gh"><i style="background:var(--${l})"></i>${LAYERS[l].n}<span>${l==="debt"?"осталось ":""}${n0(sum)}</span></div>${fs.map(fundCard).join("")}${l==="debt"?`<button class="addc" data-act="debtNew">+ Долг</button>`:""}`}
+  return`<div class="hero"><div class="top"><button class="hbtn" data-act="fNew">+ Копилка</button>${msw()}</div>
+   <div class="hl" style="margin-top:14px">${cur===now?"В копилках сейчас":cur<now?"В копилках сейчас (прошлый месяц не пересчитывается)":"Будет в копилках на конец "+MONTH_GEN[mi]}</div>
+   <div class="num" style="font-size:38px;margin-top:6px">${n0(total)}<i> ₸</i></div>
+   <span class="pill glass" style="margin-top:8px">по плану и ставкам · листай месяцы ‹ ›</span></div>
+  <div class="body">${h||`<div class="empty">Копилок пока нет.</div>`}</div>`};
 
 
 document.getElementById("view").innerHTML=loadingHtml();

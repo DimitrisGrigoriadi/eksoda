@@ -263,7 +263,7 @@ input[type=month],input[type=date]{min-width:0;max-width:100%;-webkit-appearance
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.6";
+const APP_VERSION="2026-11-28.7";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -967,6 +967,15 @@ function saveFundFresh(id,mutate,msg){
 /* ---------- Взнос копилки: правка как у строк плана ---------- */
 /* plan.ov = {"2026-12": сумма} — только этот месяц; plan.st = [{ym, x}] — с этого месяца и дальше */
 const _fundAtBase=fundAt;
+/* Взносы «с месяца и дальше» к цели: считаем один раз по порядку и запоминаем (без повторных пересчётов) */
+const _faCache=new Map();
+function stSeries(f,p,k){const s0=p.s||k;if(k<s0)return 0;
+  const key=f.id+"|"+JSON.stringify(p);let c=_faCache.get(key);if(!c){if(_faCache.size>300)_faCache.clear();c={have:p.h||0,last:null,vals:{}};_faCache.set(key,c)}
+  if(c.vals[k]!=null)return c.vals[k];
+  for(let m=c.last?shift(c.last,1):s0,i=0;m<=k&&i<600;m=shift(m,1),i++){let v;
+    if(p.ov&&p.ov[m]!=null)v=p.ov[m];else{const s=(p.st||[]).filter(x=>x.ym<=m).sort((a,b)=>a.ym.localeCompare(b.ym)).pop();v=s?Math.max(0,Math.min(s.x,p.t-c.have)):Math.max(0,Math.min(_fundAtBase(f,m),p.t-c.have))}
+    c.have+=v;c.vals[m]=v;c.last=m}
+  return c.vals[k]??0}
 fundAt=function(f,k){const p=fundPlan(f);if(!p)return 0;
   if(p.ov&&p.ov[k]!=null)return p.ov[k];
   /* цель со сроком + суммы на отдельные месяцы: остальные месяцы делят остаток поровну, чтобы к сроку вышло ровно */
@@ -976,7 +985,7 @@ fundAt=function(f,k){const p=fundPlan(f);if(!p)return 0;
     return free?ceilK(Math.max(0,p.t-(p.h||0)-fixed)/free):0}
   const st=(p.st||[]).filter(x=>x.ym<=k).sort((a,b)=>a.ym.localeCompare(b.ym)).pop();
   if(!st)return _fundAtBase(f,k);
-  if(p.mode==="target"&&p.t){let have=p.h||0;for(let m=p.s||k;m<k;m=shift(m,1))have+=fundAt(f,m);return Math.max(0,Math.min(st.x,p.t-have))}
+  if(p.mode==="target"&&p.t)return stSeries(f,p,k);
   return st.x};
 function contribSheet(f,k){if(!f)return;k=k||cur;
   const p=JSON.parse(JSON.stringify(fundPlan(f)||{mode:"fixed",g:fundLayer(f),s:k})),debt=fundLayer(f)==="debt",now=fundAt(f,k),mi=Number(k.slice(5))-1;

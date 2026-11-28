@@ -261,6 +261,8 @@ html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
 button,a,[data-act],[data-k]{touch-action:manipulation}
 input,select,textarea{font-size:16px}
 .ringwrap span svg.ico{width:22px;height:22px;transform:none;color:var(--muted)}
+.gh[data-fold]::after{content:"";width:7px;height:7px;border-right:1.8px solid var(--muted);border-bottom:1.8px solid var(--muted);transform:rotate(45deg);margin:0 4px 3px 8px;transition:transform .15s}
+.gh.folded::after{transform:rotate(-45deg);margin-bottom:0}
 
 </style>
 </head>
@@ -269,7 +271,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.20";
+const APP_VERSION="2026-11-28.21";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1369,6 +1371,17 @@ viewFundsN=function(){
    <div class="num" style="font-size:38px;margin-top:6px">${n0(total)}<i> ₸</i></div>
    <div class="accs">${(()=>{const acc={};for(const f of list){const m=fundMonth(f,cur),b=m.bal==null?fundValue(f):m.bal,key=f.p||"Без счёта";acc[key]=(acc[key]||0)+b}return Object.entries(acc).map(([a,v])=>`<span class="glass">${esc(a)}<b>${n0(v)}</b></span>`).join("")})()}</div></div>
   <div class="body">${h||`<div class="empty">Копилок пока нет.</div>`}</div>`};
+
+/* Сворачиваемые разделы в «Плане» и «Копилках»: нажал на заголовок — раздел свернулся/развернулся */
+let folded=new Set();try{folded=new Set(JSON.parse(localStorage.getItem("eks_fold")||"[]"))}catch(e){}
+function applyFold(){if(!["plan","funds"].includes(tab)||sub)return;
+  document.querySelectorAll("#view .gh").forEach(g=>{const key=tab+":"+(g.childNodes[1]?.textContent||g.textContent).trim();g.dataset.fold=key;g.style.cursor="pointer";
+    const on=folded.has(key);g.classList.toggle("folded",on);
+    let n=g.nextElementSibling;while(n&&!n.classList.contains("gh")&&!n.classList.contains("addc")||(n&&n.classList.contains("addc")&&n.dataset.act==="debtNew")){n.hidden=on;n=n.nextElementSibling}})}
+const _renderBase=render;
+render=function(){_renderBase();applyFold()};
+document.addEventListener("click",e=>{const g=e.target.closest("#view .gh[data-fold]");if(!g)return;const k=g.dataset.fold;folded.has(k)?folded.delete(k):folded.add(k);
+  try{localStorage.setItem("eks_fold",JSON.stringify([...folded]))}catch(x){}applyFold()},true);
 
 
 document.getElementById("view").innerHTML=loadingHtml();

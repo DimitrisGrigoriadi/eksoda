@@ -268,7 +268,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.15";
+const APP_VERSION="2026-11-28.16";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -868,14 +868,17 @@ function planYear(){
     ${sel?`<div class="note" style="margin-top:8px"><b style="color:var(--fg)">${MONTH_NAMES[oSel]}</b>: доход ${n0(sel.inc)}${L.filter(l=>sel[l]).map(l=>` − ${LAYERS[l].n.toLowerCase()} ${n0(sel[l])}`).join("")} = ${n0(sel.free)}</div>`:`<div class="note" style="margin-top:8px">Нажми на месяц — увидишь раскладку.</div>`}</div>
    ${rowsF.length?`<div class="card"><h4>К концу ${y}<span>сейчас → декабрь</span></h4>${rowsF.map(x=>{const t=fundPlan(x.f)?.t||0;return`<div class="wf"><span>${esc(x.f.n)}</span><b>${x.l==="debt"?`осталось ${n0(Math.max(0,t-x.now))} → ${n0(Math.max(0,t-x.end))}`:`${n0(x.now)} → ${n0(x.end)}`}</b></div>`}).join("")}</div>`:""}`;
 }
-function plan5(){if(!funds)return`<div class="empty">Нужно обновить код сервера.</div>`;
-  const y0=planStartYear(),yrs=[0,1,2,3,4].map(i=>y0+i);
-  const rows=yrs.map(yy=>{const a={res:0,debt:0,save:0};for(let i=0;i<12;i++){const k=ym(yy,i);for(const f of funds)a[fundLayer(f)]+=fundAt(f,k)}
-    const sv=funds.filter(f=>fundLayer(f)==="save").reduce((s,f)=>s+fundProject(f,ym(yy,11)),0);return{yy,...a,sv}});
-  const m=Math.max(1,...rows.map(r=>r.res+r.debt+r.save));
-  return`<div class="card"><h4>5 лет<span>отложено за год · накоплено к концу</span></h4>${rows.map(r=>`<div class="y5"><b>${r.yy}</b><span class="bb">${["res","debt","save"].map(l=>r[l]?`<i style="width:${r[l]/m*100}%;background:var(--${l})"></i>`:"").join("")}</span><span>${mln(r.res+r.debt+r.save)}<small>${mln(r.sv)}</small></span></div>`).join("")}
-   <div class="lg">${["res","debt","save"].map(l=>`<span><i style="background:var(--${l})"></i>${LAYERS[l].n}</span>`).join("")}</div>
-   <div class="note" style="margin-top:8px">Без процентов по депозитам и S&amp;P. Крупная цель (квартира, машина) — это копилка с суммой и сроком.</div></div>`}
+function plan5(){if(!funds)return`<div class="empty">Копилки не загрузились.</div>`;
+  const y0=planStartYear(),yL=y0+4,list=funds.filter(f=>fundLayer(f)!=="debt"),debts=funds.filter(f=>fundLayer(f)==="debt");
+  const Y={};for(let y=y0;y<=yL;y++)Y[y]={inn:0,pr:0,out:0,end:0,debt:0};
+  for(const f of list){const rows=fundForecast(f,yL+"-12");for(const x of rows){const y=Number(x.k.slice(0,4));if(!Y[y])continue;Y[y].inn+=x.inn;Y[y].pr+=x.pr;Y[y].out+=x.out;if(x.k.endsWith("-12"))Y[y].end+=x.v}}
+  for(const f of debts)for(let y=y0;y<=yL;y++)for(let i=0;i<12;i++)Y[y].debt+=fundAt(f,ym(y,i));
+  const mx=Math.max(1,...Object.values(Y).map(r=>r.end));
+  return`<div class="card"><h4>5 лет · копилки<span>с процентами по ставкам</span></h4>
+   ${Object.entries(Y).map(([y,r])=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;font-size:14px"><b>${y}</b><b>${mln(r.end)}</b></div><div class="bb" style="height:10px;border-radius:5px;display:flex;overflow:hidden;background:var(--soft);margin:6px 0"><i style="display:block;width:${(r.end-r.pr)/mx*100}%;background:var(--save)"></i><i style="display:block;width:${Math.max(0,r.pr)/mx*100}%;background:#b9e0c9"></i></div><div class="note">внесём ${mln(r.inn)} · проценты +${mln(r.pr)}${r.out?" · траты −"+mln(r.out):""}</div></div>`).join("")}
+   <div class="lg"><span><i style="background:var(--save)"></i>Взносы и остаток</span><span><i style="background:#b9e0c9"></i>Проценты за год</span></div>
+   <div class="note" style="margin-top:8px">Справа — сколько будет во всех копилках в декабре. Проценты начисляются каждый месяц на остаток, в том числе на прошлые проценты.</div></div>
+   ${Object.values(Y).some(r=>r.debt)?`<div class="card"><h4>Долги<span>платежи за год</span></h4>${Object.entries(Y).filter(([,r])=>r.debt).map(([y,r])=>`<div class="wf"><span>${y}</span><b>${n0(r.debt)}</b></div>`).join("")}</div>`:""}`}
 
 /* ---------- Копилки ---------- */
 function fundPct(f){const p=fundPlan(f);const t=p?.t||0;return t?fundValue(f)/t:null}

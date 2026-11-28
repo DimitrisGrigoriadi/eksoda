@@ -263,7 +263,7 @@ input[type=month],input[type=date]{min-width:0;max-width:100%;-webkit-appearance
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.5";
+const APP_VERSION="2026-11-28.6";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -878,7 +878,7 @@ function fundCard(f){const l=fundLayer(f),p=fundPct(f),own=fundPlan(f)?.own,neg=
   return`<button class="fund" data-fund="${esc(f.id)}"><span class="ringwrap">${fundRing(p??0.999,`var(--${l})`)}<span>${p!=null?Math.round(p*100)+"%":"∞"}</span></span>
    <span class="t"><b>${esc(f.n)}${own?`<span class="tagp me">личная · ${esc(own)}</span>`:""}</b><em>${l==="debt"?"отдано ":""}${money(fundValue(f),f.cur)}</em><small>${esc(fundSummary(f))}${l==="debt"?"":` · ${n0(fundMonthly(f))} в месяц`}${fundRate(f)?` · ${String(f.rate).replace(".",",")}% годовых`:""}</small>${l!=="debt"?(()=>{const rw=fundForecast(f,planStartYear()+"-12"),pr=rw.reduce((a,x)=>a+x.pr,0),inn=rw.reduce((a,x)=>a+x.inn,0);return`<small style="color:var(--fg)">к концу ${planStartYear()} ≈ ${n0(rw.length?rw[rw.length-1].v:fundValue(f))}</small><small>внесём ${n0(inn)}${pr?` · проценты ${n0(pr)}`:""}</small>`})():""}${neg?`<small class="neg">Разрыв в ${MONTH_GEN[Number(neg.k.slice(5))-1]}: не хватит ${n0(-neg.b)}</small>`:""}</span></button>`}
 function viewFundsN(){
-  if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки пока недоступны: нужно обновить код сервера в Apps Script.</div></div>`;
+  if(!funds)return`<div class="hero"><div class="top">${wm}</div></div><div class="body"><div class="empty">Копилки не загрузились с сервера.<button class="btn" data-act="reload">Загрузить заново</button></div></div>`;
   const list=funds.filter(f=>fundLayer(f)!=="debt"),total=list.reduce((a,f)=>a+fundKzt(f),0);
   const acc={};for(const f of list)acc[f.p||"Без счёта"]=(acc[f.p||"Без счёта"]||0)+fundKzt(f);
   let h="";for(const l of["res","debt","save"]){const fs=funds.filter(f=>fundLayer(f)===l);if(!fs.length&&l!=="debt")continue;
@@ -1203,6 +1203,7 @@ document.addEventListener("click",async e=>{
     if(act==="putin"){a.disabled=true;const k=a.dataset.k,s=sums(cur),r=(s.P[k]||0)-(s.byCat[k]||0);
       try{const o=await api("addOp",putInOp(k,r));ensure(o.d.slice(0,7)).ops.push(o);haptic("success");toast(`Записано ${n0(r)} ₸`);rerenderKeepScroll()}catch(x){haptic("error");toast("Не сохранилось. Проверьте интернет.");a.disabled=false}return}
     if(act==="more"){moreSheet();return}
+    if(act==="reload"){a.disabled=true;a.textContent="Загружаю…";lastLoad=Date.now();await load(true);return}
     if(act==="howLeft"){const s=sums(cur),ob=s.plan.need+s.plan.debt,obF=s.fact.need+s.fact.debt;
       openSheet(`<div class="ttl"><b>Как считается</b></div>
        <div class="card" style="background:var(--soft)"><h4>Жизнь<span>вместе и личное</span></h4><div class="wf"><span>Заложено на месяц</span><b>${n0(s.plan.want)}</b></div><div class="wf"><span>Уже потрачено</span><b>−${n0(s.fact.want)}</b></div><div class="wf"><span>Осталось</span><b>${n0(s.plan.want-s.fact.want)}</b></div></div>
@@ -1285,6 +1286,10 @@ function fundCalc(f){
 function fundValue(f){return fundCalc(f).v}
 function fundProject(f,K){let v=fundValue(f);const r=fundRate(f),from=shift(nowYm(),1),s0=fundPlan(f)?.s||from;if(K<from)return v;
   const ev=fundEvents(f,from>s0?from:s0,K);for(let k=from;k<=K;k=shift(k,1)){v+=Math.max(0,v)*r;v+=fundAt(f,k);v-=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0)}return Math.round(v)}
+
+/* Если данные уже есть, а фоновое обновление не удалось — не ломать экран, просто сказать */
+const _fatal=fatal;
+fatal=function(e){if(Object.keys(months).length||funds){document.querySelector("nav.tabs").hidden=tab==="add";toast("Не удалось обновить данные с сервера, показываю последние ("+(e.data?.error||e.message||"ошибка")+")");render();return}_fatal(e)};
 
 
 document.getElementById("view").innerHTML=loadingHtml();

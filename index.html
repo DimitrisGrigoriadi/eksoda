@@ -263,7 +263,7 @@ input[type=month],input[type=date]{min-width:0;max-width:100%;-webkit-appearance
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.4";
+const APP_VERSION="2026-11-28.5";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -601,7 +601,7 @@ function fundForm(){
   const mo=(id,v,l)=>`<div class="field"><label for="${id}">${l}</label><input id="${id}" type="month" value="${esc(v||"")}"></div>`;
   const modes=debt?{target:"К сумме и сроку",schedule:"По графику платежей",fixed:"Фиксированно в месяц"}:MODES;
   let body="";
-  if(p.mode==="target")body=`<div class="field"><label for="f_t">${debt?"Сколько отдать всего, ₸":"Сколько нужно, ₸"}</label><input id="f_t" class="numfmt" inputmode="numeric" value="${p.t?p.t.toLocaleString("ru-RU"):""}"></div><div class="g2" style="grid-template-columns:1fr 1fr">${mo("f_s",p.s,debt?"Отдавать с":"Копить с")}${mo("f_b",p.b,debt?"Закрыть к":"К какому месяцу")}</div>`;
+  if(p.mode==="target")body=`<div class="field"><label for="f_t">${debt?"Сколько отдать всего, ₸":"Сколько нужно, ₸"}</label><input id="f_t" class="numfmt" inputmode="numeric" value="${p.t?p.t.toLocaleString("ru-RU"):""}"></div>${debt?"":`<div class="g2" style="grid-template-columns:1fr 1fr">${mo("f_s",p.s,"Копить с")}${mo("f_b",p.b,"К какому месяцу")}</div>`}`;
   if(p.mode==="schedule")body=`<div class="field"><label>Платежи</label>${(p.pay||[]).map((r,i)=>`<div class="payrow"><input type="month" data-pay="${i}" data-pf="ym" value="${esc(r.ym||"")}" aria-label="Месяц"><input class="numfmt" inputmode="numeric" data-pay="${i}" data-pf="a" value="${r.a?r.a.toLocaleString("ru-RU"):""}" placeholder="Сумма" aria-label="Сумма"><input data-pay="${i}" data-pf="n" value="${esc(r.n||"")}" placeholder="Что" aria-label="Что"><button class="del" data-paydel="${i}" aria-label="Удалить">×</button></div>`).join("")}
     <button class="btn ghost small" id="payAdd">+ Платёж</button></div>${debt?"":`<label class="chk"><input type="checkbox" id="f_rep" ${p.rep?"checked":""}>Повторяются каждый год</label>`}${mo("f_s",p.s,"Копить с")}`;
   if(p.mode==="fixed")body=`<div class="field"><label for="f_x">${debt?"Сколько отдавать":"Сколько откладывать"} в месяц, ₸</label><input id="f_x" class="numfmt" inputmode="numeric" value="${p.x?p.x.toLocaleString("ru-RU"):""}"></div>${mo("f_s",p.s,"С какого месяца")}`;
@@ -610,9 +610,9 @@ function fundForm(){
   return`<div class="card" style="display:flex;flex-direction:column;gap:12px"><div class="grp-h"><h3>${isNew?"Новая копилка или долг":debt?"Долг":"Копилка"}</h3></div>
    <div class="field"><label for="f_g">Что это</label><select id="f_g"><option value="res" ${p.g==="res"?"selected":""}>Резерв: подарки, налоги, отпуск</option><option value="debt" ${debt?"selected":""}>Долг</option><option value="save" ${p.g==="save"?"selected":""}>Накопление: подушка, капитал, цель</option></select></div>
    <div class="field"><label for="f_n">Название</label><input id="f_n" value="${esc(f.n)}" placeholder="${debt?"Например, Частный долг":"Например, Отпуск или Машина"}" autocomplete="off"></div>
-   <div class="field"><label for="f_mode">${debt?"Как отдаём":"Как копим"}</label><select id="f_mode">${Object.entries(modes).map(([k,v])=>`<option value="${k}" ${p.mode===k?"selected":""}>${v}</option>`).join("")}</select></div>
+   ${debt?"":`<div class="field"><label for="f_mode">${debt?"Как отдаём":"Как копим"}</label><select id="f_mode">${Object.entries(modes).map(([k,v])=>`<option value="${k}" ${p.mode===k?"selected":""}>${v}</option>`).join("")}</select></div>`}
    ${body}
-   ${debt?"":`<div class="hint"><span>Взнос: <b>${fmt(prev)}</b> в месяц</span></div>`}
+   ${debt?`<div class="hint"><span>Сколько отдавать в каждом месяце — в «Плане»: Обязательства → Долги, нажми на долг. «Уже отдано» растёт само от месяца к месяцу по записанным платежам.</span></div>`:`<div class="hint"><span>Взнос: <b>${fmt(prev)}</b> в месяц</span></div>`}
    ${debt?"":`<div class="field"><label for="f_p">На каком счёте лежит</label><input id="f_p" list="f_accs" value="${esc(f.p)}" placeholder="Например, Короткий депозит" autocomplete="off"><datalist id="f_accs">${accs.map(a=>`<option value="${esc(a)}">`).join("")}</datalist></div>
    <div class="field"><label for="f_c">На что тратится</label><select id="f_c"><option value="">—</option>${CATS.filter(c=>c.g!=="save").map(c=>`<option value="${c.id}" ${f.c===c.id?"selected":""}>${esc(c.n)}</option>`).join("")}</select></div>`}
    <div class="field"><label for="f_bal">${debt?"Уже отдано":"Сейчас в копилке"}</label><input id="f_bal" class="numfmt" inputmode="numeric" value="${f.bal!=null?Math.round(f.bal).toLocaleString("ru-RU"):""}" placeholder="${Math.round(fundValue(f)).toLocaleString("ru-RU")}"></div>
@@ -969,6 +969,11 @@ function saveFundFresh(id,mutate,msg){
 const _fundAtBase=fundAt;
 fundAt=function(f,k){const p=fundPlan(f);if(!p)return 0;
   if(p.ov&&p.ov[k]!=null)return p.ov[k];
+  /* цель со сроком + суммы на отдельные месяцы: остальные месяцы делят остаток поровну, чтобы к сроку вышло ровно */
+  if(p.mode==="target"&&p.t&&p.b&&p.s&&p.ov&&!(p.st&&p.st.length)){if(k<p.s||k>p.b)return 0;let fixed=0,free=0;
+    for(let m=p.s;m<=p.b;m=shift(m,1)){if(p.ov[m]!=null)fixed+=p.ov[m];else free++}
+    for(const m in p.ov)if(m>p.b)fixed+=p.ov[m];
+    return free?ceilK(Math.max(0,p.t-(p.h||0)-fixed)/free):0}
   const st=(p.st||[]).filter(x=>x.ym<=k).sort((a,b)=>a.ym.localeCompare(b.ym)).pop();
   if(!st)return _fundAtBase(f,k);
   if(p.mode==="target"&&p.t){let have=p.h||0;for(let m=p.s||k;m<k;m=shift(m,1))have+=fundAt(f,m);return Math.max(0,Math.min(st.x,p.t-have))}
@@ -979,8 +984,8 @@ function contribSheet(f,k){if(!f)return;k=k||cur;
   openSheet(`<div class="ttl"><b>${esc(f.n)}</b><small>${debt?"платёж":"взнос"} · ${MONTH_NAMES[mi].toLowerCase()} ${k.slice(0,4)}</small></div>
    <div class="step"><button data-cs="-1" aria-label="Меньше">−</button><input id="cV" inputmode="numeric" value="${n0(now)}" aria-label="Сумма в месяц"><button data-cs="1" aria-label="Больше">+</button></div>
    <div class="seg"><button data-csc="only" aria-pressed="${pScope==="only"}">Только ${MONTH_NAMES[mi].toLowerCase()}</button><button data-csc="all" aria-pressed="${pScope!=="only"}">${MONTH_NAMES[mi]} и дальше</button></div>
-   <div class="note" id="cN">${auto?"Обычно взнос считается сам из списка — здесь можно положить больше или меньше.":p.mode==="target"&&p.t?"Когда цель "+n0(p.t)+" наберётся, взносы остановятся сами.":""}</div>
-   <button class="btn w" id="cOk">Сохранить</button>${(p.ov&&Object.keys(p.ov).length)||(p.st&&p.st.length)?`<button class="del" style="color:var(--muted)" id="cReset">Вернуть расчёт по цели и сроку</button>`:""}<button class="del" style="color:var(--muted)" id="cMore">Цель, срок и другие настройки</button>`,sh=>{
+   <div class="note" id="cN">${auto?"Обычно взнос считается сам из списка — здесь можно положить больше или меньше.":p.mode==="target"&&p.t?(debt?"Остальные месяцы пересчитаются сами, чтобы долг закрылся к сроку.":"Когда цель "+n0(p.t)+" наберётся, взносы остановятся сами."):""}</div>
+   <button class="btn w" id="cOk">Сохранить</button>${(p.ov&&Object.keys(p.ov).length)||(p.st&&p.st.length)?`<button class="del" style="color:var(--muted)" id="cReset">Вернуть расчёт по цели и сроку</button>`:""}<button class="del" style="color:var(--muted)" id="cMore">${debt?"Сумма долга и другие настройки":"Цель, срок и другие настройки"}</button>`,sh=>{
     let sc=pScope==="only"?"only":"all";const iv=sh.querySelector("#cV");
     iv.oninput=()=>{const v=parseNum(iv.value);iv.value=v?n0(v):""};
     const stp=now>=200000?10000:5000;sh.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{iv.value=n0(Math.max(0,parseNum(iv.value)+Number(b.dataset.cs)*stp))});
@@ -1148,7 +1153,7 @@ function bindFundEdit(){
   const $=id=>document.getElementById(id);
   document.querySelectorAll("input.numfmt").forEach(i=>i.addEventListener("input",()=>{const v=parseNum(i.value);i.value=i.value.trim()===""?"":v.toLocaleString("ru-RU")}));
   const keep=()=>{readFundForm();const y=window.scrollY;render();window.scrollTo(0,y)};
-  $("f_mode").onchange=()=>{readFundForm();fEdit.plan.mode=$("f_mode").value;if(fEdit.plan.mode==="schedule"&&!fEdit.plan.pay.length)fEdit.plan.pay.push({ym:fEdit.plan.s||"",a:0,n:""});keep()};
+  if($("f_mode"))$("f_mode").onchange=()=>{readFundForm();fEdit.plan.mode=$("f_mode").value;if(fEdit.plan.mode==="schedule"&&!fEdit.plan.pay.length)fEdit.plan.pay.push({ym:fEdit.plan.s||"",a:0,n:""});keep()};
   $("f_g").onchange=()=>{readFundForm();if(fEdit.plan.g==="debt"&&fEdit.plan.mode==="gifts")fEdit.plan.mode="target";keep()};
   ["f_t","f_s","f_b","f_x","f_rep","f_cur"].forEach(id=>{const e=$(id);if(e)e.addEventListener("change",keep)});
   document.querySelectorAll("[data-pay]").forEach(i=>i.addEventListener("change",keep));
@@ -1212,6 +1217,7 @@ document.addEventListener("click",async e=>{
   const om=t.closest("[data-om]");if(om){const i=Number(om.dataset.om);oSel=oSel===i?-1:i;rerenderKeepScroll();return}
   const pr=t.closest("[data-pr]");if(pr){editSheet("cat",pr.dataset.pr);return}
   const inc=t.closest("[data-inc]");if(inc){editSheet("inc",Number(inc.dataset.inc));return}
+  const cm=t.closest("[data-cm]");if(cm){pScope="only";contribSheet(fundById(sub.slice(5)),cm.dataset.cm);return}
   const fr=t.closest(".rows [data-fund]");if(fr){contribSheet(fundById(fr.dataset.fund));return}
   const fd=t.closest("[data-fund]");if(fd){sub="fund:"+fd.dataset.fund;fdMode="m";gMode="m";render();window.scrollTo(0,0);return}
   const fdm=t.closest("[data-fd]");if(fdm){fdMode=fdm.dataset.fd;rerenderKeepScroll();return}

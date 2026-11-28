@@ -268,7 +268,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.8";
+const APP_VERSION="2026-11-28.9";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1012,9 +1012,12 @@ function contribSheet(f,k){if(!f)return;k=k||cur;
       else put(q=>{q.st=(q.st||[]).filter(z=>z.ym<k).concat([{ym:k,x}]);if(q.ov)for(const m of Object.keys(q.ov))if(m>=k)delete q.ov[m];if(q.s>k)q.s=k},`Сохранено на сервере ✓ — с ${MONTH_GEN[mi]} и дальше`)}})}
 
 
+
+/* Сколько уходит в копилку в месяц: её собственный взнос, а если его нет — строка плана (Подушка, S&P 500) */
+function fundIn(f,k){const a=fundAt(f,k);if(a)return a;return f.c&&SAVE_CATS.has(f.c)?(planCats(k)[f.c]||0):0}
 /* ---------- Прогноз копилки: взносы, проценты, траты, остаток по месяцам ---------- */
 function fundForecast(f,to){const r=fundRate(f),from=shift(nowYm(),1),s0=fundPlan(f)?.s||from;let v=fundValue(f);const rows=[];
-  for(let k=from;k<=to;k=shift(k,1)){const pr=Math.max(0,v)*r;v+=pr;const inn=fundAt(f,k),out=fundEvents(f,k>=s0?k:s0,k).filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0);v+=inn-out;rows.push({k,inn,pr,out,v})}
+  for(let k=from;k<=to;k=shift(k,1)){const pr=Math.max(0,v)*r;v+=pr;const inn=fundIn(f,k),out=fundEvents(f,k>=s0?k:s0,k).filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0);v+=inn-out;rows.push({k,inn,pr,out,v})}
   return rows}
 function projCard(f){const Y=planStartYear(),rows=fundForecast(f,Y+"-12"),S=key=>rows.reduce((a,x)=>a+x[key],0),now=fundValue(f),end=rows.length?rows[rows.length-1].v:now,rate=fundRate(f);
   return`<div class="card"><h4>План до конца ${Y}<span>по взносам ${rate?"и ставке "+String(f.rate).replace(".",",")+"%":"(ставка не задана)"}</span></h4>
@@ -1299,7 +1302,7 @@ function fundCalc(f){
   return{v:Math.round(v),earned:Math.round(earned)}}
 function fundValue(f){return fundCalc(f).v}
 function fundProject(f,K){let v=fundValue(f);const r=fundRate(f),from=shift(nowYm(),1),s0=fundPlan(f)?.s||from;if(K<from)return v;
-  const ev=fundEvents(f,from>s0?from:s0,K);for(let k=from;k<=K;k=shift(k,1)){v+=Math.max(0,v)*r;v+=fundAt(f,k);v-=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0)}return Math.round(v)}
+  const ev=fundEvents(f,from>s0?from:s0,K);for(let k=from;k<=K;k=shift(k,1)){v+=Math.max(0,v)*r;v+=fundIn(f,k);v-=ev.filter(e=>e.ym===k).reduce((a,e)=>a+e.a,0)}return Math.round(v)}
 
 /* Если данные уже есть, а фоновое обновление не удалось — не ломать экран, просто сказать */
 const _fatal=fatal;

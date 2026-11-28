@@ -268,7 +268,7 @@ input,select,textarea{font-size:16px}
 <div class="app"><main id="view"></main></div>
 <nav class="tabs"><div class="in"><button data-tab="home"><svg aria-hidden="true"><use href="#i-home"/></svg>Главная</button><button data-tab="spend"><svg aria-hidden="true"><use href="#i-pie"/></svg>Траты</button><button data-tab="add" class="add"><svg aria-hidden="true"><use href="#i-plus"/></svg>Записать</button><button data-tab="plan"><svg aria-hidden="true"><use href="#i-list"/></svg>План</button><button data-tab="funds"><svg aria-hidden="true"><use href="#i-jar"/></svg>Копилки</button></div></nav>
 <script>
-const APP_VERSION="2026-11-28.10";
+const APP_VERSION="2026-11-28.11";
 (async()=>{try{const r=await fetch("./version.txt?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
  if(v&&v!==APP_VERSION){let k;try{k=sessionStorage.getItem("eks_reload")}catch(e){}
   if(k===v)return;try{sessionStorage.setItem("eks_reload",v)}catch(e){}
@@ -1321,6 +1321,32 @@ fundSched=function(f){const sc=_fundSchedBase(f),r=fundRate(f),p=fundPlan(f);
   let lo=0,hi=1;for(let i=0;i<22;i++){const m=(lo+hi)/2;if(ok(m))hi=m;else lo=m}
   const res={S:sc.S?ceilK(sc.S*hi):0,C:sc.C?ceilK(sc.C*hi):0,end:sc.end};
   if(_schedCache.size>200)_schedCache.clear();_schedCache.set(key,res);return res};
+
+/* Подушка и S&P раньше пополнялись строками плана, а машина и квартира — своим взносом в копилке.
+   Один раз переводим строки плана в взнос самой копилки, чтобы все накопления работали одинаково. */
+let unifyDone=false;
+async function unifySavings(){
+  if(unifyDone||!funds||!years?.template||serverOld)return;
+  const t=T(),list=funds.filter(f=>f.c&&SAVE_CATS.has(f.c)&&!fundPlan(f)&&fundLayer(f)==="save");
+  if(!list.length){unifyDone=true;return}
+  unifyDone=true;
+  const own=Object.keys(months).filter(k=>hasOwn(k)).sort();
+  try{
+    for(const f of list){const c=f.c,base=Number(t.cats?.[c]||0),ov={};let s=null;
+      for(const k of own){const v=Number(months[k].plan[c]||0);if(v||base){if(!s||k<s)s=k}if(v!==base&&(v||base))ov[k]=v}
+      if(base&&(!s||t.from<s))s=t.from;
+      if(!s)continue;
+      const plan={mode:"fixed",g:"save",s,x:base,h:0};if(Object.keys(ov).length)plan.ov=ov;
+      const f2={...f,plan};await api("setFund",f2);funds[funds.findIndex(z=>z.id===f.id)]=f2}
+    const cs=list.map(f=>f.c);
+    if(t.cats&&cs.some(c=>c in t.cats)){for(const c of cs)delete t.cats[c];await api("setYear",{year:"template",data:t})}
+    const out={};for(const k of own){const p=months[k].plan;if(cs.some(c=>c in p)){const cats={...planCats(k)};for(const c of cs)delete cats[c];out[k]={plan:cats,incomes:planInc(k)}}}
+    if(Object.keys(out).length){const d=await api("applyYear",{months:out});ingest(d,true)}
+    render();toast("Подушка и S&P теперь пополняются как остальные копилки")
+  }catch(e){unifyDone=false}
+}
+const _load2=load;
+load=async function(silent){await _load2(silent);try{await unifySavings()}catch(e){}};
 
 
 document.getElementById("view").innerHTML=loadingHtml();
